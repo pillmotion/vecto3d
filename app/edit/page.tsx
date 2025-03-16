@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SVGModel } from "@/components/svg-model"
-import { Download, ChevronDown, AlertTriangle, RotateCcw, InfoIcon, ArrowLeft } from "lucide-react"
+import { Download, ChevronDown, AlertTriangle, RotateCcw, InfoIcon, ArrowLeft, Camera, ImageIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { exportToSTL, exportToGLTF } from "@/lib/exporters"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,10 +20,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
+import { EffectComposer, Bloom, BrightnessContrast } from "@react-three/postprocessing"
+import { BlendFunction } from "postprocessing"
 
 
 
@@ -102,6 +107,14 @@ const MATERIAL_PRESETS = [
   }
 ]
 
+// Create constants for PNG export resolutions
+const PNG_RESOLUTIONS = [
+  { label: "Standard (1x)", multiplier: 1 },
+  { label: "HD (2x)", multiplier: 2 },
+  { label: "2K (4x)", multiplier: 4 },
+  { label: "4K (8x)", multiplier: 8 },
+]
+
 // Custom environment component that uses a texture instead of a direct HDRI
 function CustomEnvironment({ imageUrl }: { imageUrl: string }) {
   const texture = useTexture(imageUrl)
@@ -145,6 +158,9 @@ export default function EditPage() {
   const [useEnvironment, setUseEnvironment] = useState<boolean>(true)
   const [environmentPreset, setEnvironmentPreset] = useState<string>("apartment")
   
+  // Model rotation settings
+  const [modelRotationY, setModelRotationY] = useState<number>(0)
+  
   // Background options - with theme awareness
   const [userSelectedBackground, setUserSelectedBackground] = useState<boolean>(false)
   const [backgroundColor, setBackgroundColor] = useState<string>(LIGHT_MODE_COLOR)
@@ -155,6 +171,7 @@ export default function EditPage() {
   const [autoRotateSpeed, setAutoRotateSpeed] = useState<number>(3) // Middle value (represents 2.5+3=5.5)
   
   const modelRef = useRef<THREE.Group>(null)
+  const modelGroupRef = useRef<THREE.Group>(null)
   const hdriFileInputRef = useRef<HTMLInputElement>(null)
   const [customHdriUrl, setCustomHdriUrl] = useState<string | null>(null)
   
@@ -163,10 +180,20 @@ export default function EditPage() {
   
   const [customImageError, setCustomImageError] = useState<string | null>(null)
 
+  // Bloom effect settings - disabled by default
+  const [useBloom, setUseBloom] = useState<boolean>(false)
+  const [bloomIntensity, setBloomIntensity] = useState<number>(2.0)
+  const [bloomThreshold, setBloomThreshold] = useState<number>(0.4)
+  const [bloomMipmapBlur, setBloomMipmapBlur] = useState<boolean>(true)
+  
+  // Vibe Mode specific settings
+  const [vibeModeMaterial, setVibeModeMaterial] = useState<string>("#000000")
+  const [vibeModeOriginalMaterial, setVibeModeOriginalMaterial] = useState<string | null>(null)
+  
   // Theme detection effect
   useEffect(() => {
     if (!userSelectedBackground) {
-      if (theme === 'dark') {
+      if (theme === 'dark' || useBloom) {
         setBackgroundColor(DARK_MODE_COLOR)
         setSolidColorPreset('dark')
       } else {
@@ -174,7 +201,12 @@ export default function EditPage() {
         setSolidColorPreset('light')
       }
     }
-  }, [theme, userSelectedBackground])
+    
+    // Disable auto-rotation when vibe mode is enabled
+    if (useBloom) {
+      setAutoRotate(false)
+    }
+  }, [theme, userSelectedBackground, useBloom])
 
   // Detect mobile device on mount and window resize
   useEffect(() => {
@@ -221,9 +253,7 @@ export default function EditPage() {
     
     if (!file) {
       setCustomImageError("No file selected")
-      toast.error("No file selected", {
-        description: "Please select an image file to upload",
-      })
+      toast.error("No file selected")
       return
     }
     
@@ -234,79 +264,158 @@ export default function EditPage() {
     
     if (!isJpg && !isPng) {
       setCustomImageError("Only JPG and PNG formats are supported")
-      toast.error("Unsupported file format", {
-        description: "Only JPG and PNG formats are supported",
-      })
+      toast.error("Unsupported file format: Only JPG and PNG are supported")
       return
     }
     
     // Check file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       setCustomImageError("Image must be smaller than 10MB")
-      toast.error("File too large", {
-        description: "Image must be smaller than 10MB",
-      })
+      toast.error("File too large: Image must be smaller than 10MB")
       return
     }
     
-    const reader = new FileReader()
-    // Show loading toast
-    const loadingToast = toast.loading("Processing image...")
+      const reader = new FileReader()
     
     try {
       reader.onload = (event) => {
-        // Dismiss loading toast
-        toast.dismiss(loadingToast)
-        
         if (event.target?.result) {
           setCustomHdriUrl(event.target.result as string)
           setEnvironmentPreset('custom')
           // Reset error state on successful load
           setCustomImageError(null)
-          toast.success("Image uploaded successfully", {
-            description: "Your custom image has been applied",
-          })
+          toast.success("Image uploaded successfully")
         } else {
           setCustomImageError("Failed to process image")
-          toast.error("Failed to process image", {
-            description: "The image could not be processed",
-          })
+          toast.error("Failed to process image")
         }
       }
       
       reader.onerror = (error) => {
-        // Dismiss loading toast
-        toast.dismiss(loadingToast)
-        
         console.error("FileReader error:", error)
         setCustomImageError("Failed to read file")
-        toast.error("Failed to read the image file", {
-          description: "Please try again with a different image",
-        })
+        toast.error("Failed to read the image file")
       }
       
       reader.readAsDataURL(file)
     } catch (error) {
       console.error("File reading error:", error)
       setCustomImageError("Failed to read file")
-      toast.error("Failed to read the image file", {
-        description: "An unexpected error occurred",
-      })
+      toast.error("Failed to read the image file")
     }
     
     // Clear the input value to allow selecting the same file again
     e.target.value = ''
   }
 
-  const handleExport = async (format: "stl" | "gltf" | "glb") => {
-    if (!modelRef.current || !fileName) return
+  const handleExport = async (format: "stl" | "gltf" | "glb" | "png", resolution?: number) => {
+    // Log what we have to debug 
+    console.log("Export attempt:", { 
+      hasModelRef: !!modelRef.current, 
+      hasGroupRef: !!modelGroupRef.current, 
+      fileName 
+    });
+    
+    // Check group ref first, as that's the parent containing the actual model
+    if (!modelGroupRef.current || !fileName) {
+      console.error("Export failed: Model group or filename missing");
+      return;
+    }
 
-    const baseName = fileName.replace(".svg", "")
+    console.log("Starting export process for", format);
+    const baseName = fileName.replace(".svg", "");
+    
+    try {
+      if (format === "png") {
+        // Special handling for PNG screenshot
+        const canvas = document.querySelector("canvas");
+        if (!canvas) {
+          console.error("Canvas element not found");
+          toast.error("Could not find the 3D renderer");
+          return false;
+        }
+        
+        // Use the provided resolution or default to 4x
+        const pngResolution = resolution || 4;
+        
+        // Show loading toast
+        const loadingToast = toast.loading(`Generating ${pngResolution}x resolution image...`);
+        
+        try {
+          // Force a render to ensure the canvas is updated
+          setTimeout(() => {
+            try {
+              // Just use the canvas directly for the simplest approach
+              const dataURL = canvas.toDataURL('image/png', 1.0);
+              
+              // Create and trigger download
+              const link = document.createElement('a');
+              link.download = `${baseName}.png`;
+              link.href = dataURL;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              
+              toast.dismiss(loadingToast);
+              toast.success(`Image saved as ${baseName}.png`, { duration: 3000 });
+            } catch (error) {
+              console.error("Error exporting PNG:", error);
+              toast.dismiss(loadingToast);
+              toast.error("Failed to generate image");
+            }
+          }, 100); // Small delay to ensure rendering completes
+        } catch (error) {
+          console.error("Error exporting PNG:", error);
+          toast.dismiss(loadingToast);
+          toast.error("Failed to generate image");
+        }
+        
+        return true;
+      }
+      
+      // To avoid visible glitching, we'll create an invisible clone of the model
+      // and use that for export instead of modifying the visible model
 
-    if (format === "stl") {
-      exportToSTL(modelRef.current, `${baseName}.stl`)
-    } else if (format === "glb" || format === "gltf") {
-      exportToGLTF(modelRef.current, `${baseName}.${format}`, format)
+      // Clone the model group
+      const modelGroupClone = modelGroupRef.current.clone();
+      
+      // Reset the clone's rotation to zero (not visible to user)
+      modelGroupClone.rotation.y = 0;
+      modelGroupClone.updateMatrixWorld(true);
+      
+      // Export using the invisible clone
+      let success = false;
+
+      if (format === "stl") {
+        success = await exportToSTL(modelGroupClone, `${baseName}.stl`);
+      } else if (format === "glb" || format === "gltf") {
+        success = await exportToGLTF(modelGroupClone, `${baseName}.${format}`, format);
+      }
+      
+      // Dispose of the clone to free memory
+      modelGroupClone.traverse((object) => {
+        // Type check and cast to access geometry and material properties
+        const mesh = object as THREE.Mesh;
+        if (mesh.geometry) {
+          mesh.geometry.dispose();
+        }
+        if (mesh.material) {
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((material: THREE.Material) => material.dispose());
+          } else {
+            mesh.material.dispose();
+          }
+        }
+      });
+      
+      // Only show success message
+      if (success) {
+        toast.success(`${baseName}.${format} has been downloaded successfully`, {
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Export error:", error);
     }
   }
 
@@ -342,6 +451,60 @@ export default function EditPage() {
     return ENVIRONMENT_PRESETS.find(preset => preset.name === name) || ENVIRONMENT_PRESETS[0]
   }
 
+  // When enabling/disabling Vibe Mode
+  const toggleVibeMode = (newState: boolean) => {
+    setUseBloom(newState);
+    
+    if (newState) {
+      // Entering Vibe Mode
+      
+      // Set dark background
+      setUserSelectedBackground(true);
+      setBackgroundColor("#000000");
+      setSolidColorPreset('custom');
+      
+      // Disable auto-rotation
+      setAutoRotate(false);
+      
+      // Store current material color for restoration later
+      if (useCustomColor) {
+        setVibeModeOriginalMaterial(customColor);
+      }
+      
+      // Override material to black
+      setUseCustomColor(true);
+      setCustomColor("#000000");
+      
+      // Keep custom HDRI if used
+      if (environmentPreset === 'custom' && customHdriUrl) {
+        // Keep the custom HDRI
+      } else {
+        // Override to dawn environment preset for better effect
+        setEnvironmentPreset('dawn');
+      }
+    } else {
+      // Exiting Vibe Mode
+      
+      // Show alert if using custom environment
+      if (environmentPreset === 'custom' && customHdriUrl) {
+        toast.info("Custom environment maintained after exiting Vibe Mode", {
+          duration: 3000,
+        });
+      }
+      
+      // Restore original material if available
+      if (vibeModeOriginalMaterial) {
+        setCustomColor(vibeModeOriginalMaterial);
+        setVibeModeOriginalMaterial(null);
+      } else if (useCustomColor) {
+        // Keep custom color if one was set
+      } else {
+        // Restore to using SVG colors
+        setUseCustomColor(false);
+      }
+    }
+  }
+
   return (
     <main className="min-h-screen flex flex-col">
       {/* Fixed header/navbar */}
@@ -357,30 +520,54 @@ export default function EditPage() {
             >
               <ArrowLeft className="h-5 w-5" />
               <span className="hidden sm:inline">Back</span>
-            </Button>
-          </div>
-          
+        </Button>
+      </div>
+
           {svgData && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" className="flex items-center gap-1">
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Export</span>
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onSelect={() => handleExport("stl")}>
-                  Export as STL (3D Printing)
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExport("glb")}>
-                  Export as GLB (3D Web/AR)
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExport("gltf")}>
-                  Export as GLTF (3D Editing)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="flex items-center gap-1">
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Export</span>
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onSelect={() => handleExport("stl")}>
+                    Export as STL (3D Printing)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExport("glb")}>
+                    Export as GLB (3D Web/AR)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExport("gltf")}>
+                    Export as GLTF (3D Editing)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExport("png", 4)}>
+                    <Camera className="h-4 w-4 mr-2" />
+                    Save as PNG Image (2K)
+                  </DropdownMenuItem>
+                  
+                  {/* Image quality submenu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Image Quality Options
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-36">
+                      {PNG_RESOLUTIONS.map((resolution) => (
+                        <DropdownMenuItem 
+                          key={resolution.multiplier}
+                          onSelect={() => handleExport("png", resolution.multiplier)}
+                        >
+                          {resolution.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
       </header>
@@ -447,7 +634,8 @@ export default function EditPage() {
                     gl={{ 
                       outputColorSpace: "srgb",
                       toneMapping: THREE.ACESFilmicToneMapping,
-                      toneMappingExposure: 1.5
+                      toneMappingExposure: 1.5,
+                      preserveDrawingBuffer: true
                     }}
                   >
                     <Suspense fallback={null}>
@@ -459,32 +647,55 @@ export default function EditPage() {
 
                       {/* Environment lighting */}
                       {useEnvironment && (
-                        environmentPreset === 'custom' && customHdriUrl ? (
-                          <CustomEnvironment imageUrl={customHdriUrl} />
-                        ) : (
-                          <Environment 
-                            preset={environmentPreset as any} 
-                            background={false}
-                          />
-                        )
+                        <>
+                          {environmentPreset === 'custom' && customHdriUrl ? (
+                            <CustomEnvironment imageUrl={customHdriUrl} />
+                          ) : (
+                            <Environment 
+                              preset={environmentPreset as any} 
+                              background={false}
+                            />
+                          )}
+                        </>
                       )}
 
-                      <SVGModel
-                        svgData={svgData}
-                        depth={depth * 5}
-                        bevelEnabled={bevelEnabled}
-                        bevelThickness={bevelThickness}
-                        bevelSize={bevelSize}
-                        bevelSegments={bevelSegments}
-                        customColor={useCustomColor ? customColor : undefined}
-                        roughness={roughness}
-                        metalness={metalness}
-                        clearcoat={clearcoat}
-                        transmission={transmission}
-                        envMapIntensity={useEnvironment ? envMapIntensity : 0.2}
-                        ref={modelRef}
-                      />
+                      <group ref={modelGroupRef} rotation={[0, modelRotationY, 0]}>
+                        <SVGModel
+                          svgData={svgData}
+                          depth={depth * 5}
+                          bevelEnabled={bevelEnabled}
+                          bevelThickness={bevelThickness}
+                          bevelSize={bevelSize}
+                          bevelSegments={bevelSegments}
+                          customColor={useCustomColor ? customColor : undefined}
+                          roughness={roughness}
+                          metalness={metalness}
+                          clearcoat={clearcoat}
+                          transmission={transmission}
+                          envMapIntensity={useEnvironment ? envMapIntensity : 0.2}
+                          ref={modelRef}
+                        />
+                      </group>
                     </Suspense>
+                    
+                    {/* Add post-processing effects if enabled - enhanced for dreamy look */}
+                    {useBloom && (
+                      <EffectComposer>
+                        <Bloom 
+                          intensity={bloomIntensity * 0.7} // Reduced intensity for softer effect
+                          luminanceThreshold={bloomThreshold}
+                          luminanceSmoothing={0.95} // Increased for softer edges
+                          mipmapBlur={bloomMipmapBlur}
+                          radius={0.9} // Increased radius for more spread
+                        />
+                        <BrightnessContrast
+                          brightness={0.07} // Slight brightness boost
+                          contrast={0.05} // Reduced contrast for dreamier look
+                          blendFunction={BlendFunction.NORMAL}
+                        />
+                      </EffectComposer>
+                    )}
+                    
                     <OrbitControls 
                       autoRotate={autoRotate}
                       autoRotateSpeed={autoRotateSpeed}
@@ -506,231 +717,231 @@ export default function EditPage() {
 
             {/* Controls - Shown below the preview on mobile */}
             <div className="space-y-6 order-last lg:order-first">
-              <Card>
+          <Card>
                 <CardHeader className="p-4">
                   <CardTitle className="text-lg">Customize 3D Model</CardTitle>
                   <CardDescription className="text-xs truncate">{fileName}</CardDescription>
-                </CardHeader>
+            </CardHeader>
                 <CardContent className="p-4">
-                  <Tabs defaultValue="geometry">
+              <Tabs defaultValue="geometry">
                     <TabsList className="w-full flex justify-between mb-4 overflow-x-auto">
                       <TabsTrigger value="geometry" className="flex-1">Geometry</TabsTrigger>
                       <TabsTrigger value="material" className="flex-1">Material</TabsTrigger>
                       <TabsTrigger value="environment" className="flex-1">Environment</TabsTrigger>
                       <TabsTrigger value="background" className="flex-1">Background</TabsTrigger>
-                    </TabsList>
+                </TabsList>
 
-                    <TabsContent value="geometry" className="space-y-4">
-                      <div className="space-y-2">
+                <TabsContent value="geometry" className="space-y-4">
+                  <div className="space-y-2">
                         <Label htmlFor="depth">Thickness: {depth}</Label>
-                        <Slider
-                          id="depth"
+                    <Slider
+                      id="depth"
                           min={1}
                           max={50}
-                          step={1}
-                          value={[depth]}
-                          onValueChange={(value) => setDepth(value[0])}
-                        />
-                      </div>
-                      
+                      step={1}
+                      value={[depth]}
+                      onValueChange={(value) => setDepth(value[0])}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="bevelEnabled"
+                        checked={bevelEnabled}
+                        onCheckedChange={(checked) => setBevelEnabled(checked as boolean)}
+                      />
+                      <Label htmlFor="bevelEnabled">Enable Bevel</Label>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Model Rotation</Label>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="autoRotate"
+                        checked={autoRotate}
+                        onCheckedChange={(checked) => setAutoRotate(checked as boolean)}
+                      />
+                      <Label htmlFor="autoRotate">Auto-rotate model</Label>
+                    </div>
+                    
+                    {autoRotate && (
                       <div className="space-y-2 pt-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="bevelEnabled"
-                            checked={bevelEnabled}
-                            onCheckedChange={(checked) => setBevelEnabled(checked as boolean)}
-                          />
-                          <Label htmlFor="bevelEnabled">Enable Bevel</Label>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Model Rotation</Label>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="autoRotate"
-                            checked={autoRotate}
-                            onCheckedChange={(checked) => setAutoRotate(checked as boolean)}
-                          />
-                          <Label htmlFor="autoRotate">Auto-rotate model</Label>
-                        </div>
-                        
-                        {autoRotate && (
-                          <div className="space-y-2 pt-2">
-                            <Label htmlFor="autoRotateSpeed">
-                              Rotation Speed: {actualToDisplayRotation(autoRotateSpeed).toFixed(1)}
-                            </Label>
-                            <Slider
-                              id="autoRotateSpeed"
+                        <Label htmlFor="autoRotateSpeed">
+                          Rotation Speed: {actualToDisplayRotation(autoRotateSpeed).toFixed(1)} 
+                        </Label>
+                        <Slider
+                          id="autoRotateSpeed"
                               min={1}
                               max={5}
-                              step={0.5}
-                              value={[actualToDisplayRotation(autoRotateSpeed)]}
-                              onValueChange={(value) => setAutoRotateSpeed(displayToActualRotation(value[0]))}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="material" className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="materialPreset">Material Type</Label>
-                        <Select 
-                          value={materialPreset} 
-                          onValueChange={(value) => {
-                            setMaterialPreset(value);
-                            // Apply preset values when selected
-                            const preset = MATERIAL_PRESETS.find(p => p.name === value);
-                            if (preset) {
-                              setRoughness(preset.roughness);
-                              setMetalness(preset.metalness);
-                              setClearcoat(preset.clearcoat);
-                              setTransmission(preset.transmission);
-                              setEnvMapIntensity(preset.envMapIntensity);
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select material type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {MATERIAL_PRESETS.map((preset) => (
-                              <SelectItem key={preset.name} value={preset.name}>
-                                {preset.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="grid grid-cols-5 gap-2 mb-3">
-                        {MATERIAL_PRESETS.map((preset) => (
-                          <div 
-                            key={preset.name} 
-                            className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                              materialPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
-                            }`}
-                            onClick={() => {
-                              setMaterialPreset(preset.name);
-                              setRoughness(preset.roughness);
-                              setMetalness(preset.metalness);
-                              setClearcoat(preset.clearcoat);
-                              setTransmission(preset.transmission);
-                              setEnvMapIntensity(preset.envMapIntensity);
-                            }}
-                          >
-                            <div 
-                              className="w-12 h-12 rounded-full mb-1"
-                              style={{ 
-                                background: `linear-gradient(135deg, 
-                                  hsl(210, ${100 - preset.roughness * 100}%, ${50 + preset.metalness * 30}%), 
-                                  hsl(240, ${100 - preset.roughness * 80}%, ${20 + preset.metalness * 50}%))`,
-                                boxShadow: preset.clearcoat > 0 ? '0 0 10px rgba(255,255,255,0.5) inset' : 'none',
-                                opacity: preset.transmission > 0 ? 0.7 : 1
-                              }}
-                            />
-                            <span className="text-xs font-medium">{preset.label}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="useCustomColor"
-                          checked={useCustomColor}
-                          onCheckedChange={(checked) => setUseCustomColor(checked as boolean)}
+                          step={0.5}
+                          value={[actualToDisplayRotation(autoRotateSpeed)]}
+                          onValueChange={(value) => setAutoRotateSpeed(displayToActualRotation(value[0]))}
                         />
-                        <Label htmlFor="useCustomColor">Override SVG colors</Label>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="material" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="materialPreset">Material Type</Label>
+                    <Select 
+                      value={materialPreset} 
+                      onValueChange={(value) => {
+                        setMaterialPreset(value);
+                        // Apply preset values when selected
+                        const preset = MATERIAL_PRESETS.find(p => p.name === value);
+                        if (preset) {
+                          setRoughness(preset.roughness);
+                          setMetalness(preset.metalness);
+                          setClearcoat(preset.clearcoat);
+                          setTransmission(preset.transmission);
+                          setEnvMapIntensity(preset.envMapIntensity);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select material type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MATERIAL_PRESETS.map((preset) => (
+                          <SelectItem key={preset.name} value={preset.name}>
+                            {preset.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid grid-cols-5 gap-2 mb-3">
+                    {MATERIAL_PRESETS.map((preset) => (
+                      <div 
+                        key={preset.name} 
+                        className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                          materialPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                        }`}
+                        onClick={() => {
+                          setMaterialPreset(preset.name);
+                          setRoughness(preset.roughness);
+                          setMetalness(preset.metalness);
+                          setClearcoat(preset.clearcoat);
+                          setTransmission(preset.transmission);
+                          setEnvMapIntensity(preset.envMapIntensity);
+                        }}
+                      >
+                        <div 
+                          className="w-12 h-12 rounded-full mb-1"
+                          style={{ 
+                            background: `linear-gradient(135deg, 
+                              hsl(210, ${100 - preset.roughness * 100}%, ${50 + preset.metalness * 30}%), 
+                              hsl(240, ${100 - preset.roughness * 80}%, ${20 + preset.metalness * 50}%))`,
+                            boxShadow: preset.clearcoat > 0 ? '0 0 10px rgba(255,255,255,0.5) inset' : 'none',
+                            opacity: preset.transmission > 0 ? 0.7 : 1
+                          }}
+                        />
+                        <span className="text-xs font-medium">{preset.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="useCustomColor"
+                      checked={useCustomColor}
+                      onCheckedChange={(checked) => setUseCustomColor(checked as boolean)}
+                    />
+                    <Label htmlFor="useCustomColor">Override SVG colors</Label>
+                  </div>
+
+                  {useCustomColor && (
+                    <div className="space-y-2">
+                      <Label htmlFor="colorPicker">Custom Color</Label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="color"
+                          id="colorPicker"
+                          value={customColor}
+                          onChange={(e) => setCustomColor(e.target.value)}
+                          className="w-10 h-10 rounded cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={customColor}
+                          onChange={(e) => setCustomColor(e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {materialPreset === "custom" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="roughness">Roughness: {roughness.toFixed(2)}</Label>
+                        <Slider
+                          id="roughness"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={[roughness]}
+                          onValueChange={(value) => setRoughness(value[0])}
+                        />
                       </div>
 
-                      {useCustomColor && (
-                        <div className="space-y-2">
-                          <Label htmlFor="colorPicker">Custom Color</Label>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="color"
-                              id="colorPicker"
-                              value={customColor}
-                              onChange={(e) => setCustomColor(e.target.value)}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <input
-                              type="text"
-                              value={customColor}
-                              onChange={(e) => setCustomColor(e.target.value)}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            />
-                          </div>
-                        </div>
-                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="metalness">Metalness: {metalness.toFixed(2)}</Label>
+                        <Slider
+                          id="metalness"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={[metalness]}
+                          onValueChange={(value) => setMetalness(value[0])}
+                        />
+                      </div>
 
-                      {materialPreset === "custom" && (
-                        <>
-                          <div className="space-y-2">
-                            <Label htmlFor="roughness">Roughness: {roughness.toFixed(2)}</Label>
-                            <Slider
-                              id="roughness"
-                              min={0}
-                              max={1}
-                              step={0.01}
-                              value={[roughness]}
-                              onValueChange={(value) => setRoughness(value[0])}
-                            />
-                          </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="clearcoat">Clearcoat: {clearcoat.toFixed(2)}</Label>
+                        <Slider
+                          id="clearcoat"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={[clearcoat]}
+                          onValueChange={(value) => setClearcoat(value[0])}
+                        />
+                      </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="metalness">Metalness: {metalness.toFixed(2)}</Label>
-                            <Slider
-                              id="metalness"
-                              min={0}
-                              max={1}
-                              step={0.01}
-                              value={[metalness]}
-                              onValueChange={(value) => setMetalness(value[0])}
-                            />
-                          </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="transmission">Transmission: {transmission.toFixed(2)}</Label>
+                        <Slider
+                          id="transmission"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={[transmission]}
+                          onValueChange={(value) => setTransmission(value[0])}
+                        />
+                      </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="clearcoat">Clearcoat: {clearcoat.toFixed(2)}</Label>
-                            <Slider
-                              id="clearcoat"
-                              min={0}
-                              max={1}
-                              step={0.01}
-                              value={[clearcoat]}
-                              onValueChange={(value) => setClearcoat(value[0])}
-                            />
-                          </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="envMapIntensity">Environment Reflection: {envMapIntensity.toFixed(1)}</Label>
+                        <Slider
+                          id="envMapIntensity"
+                          min={0}
+                          max={3}
+                          step={0.1}
+                          value={[envMapIntensity]}
+                          onValueChange={(value) => setEnvMapIntensity(value[0])}
+                        />
+                      </div>
+                    </>
+                  )}
+                </TabsContent>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="transmission">Transmission: {transmission.toFixed(2)}</Label>
-                            <Slider
-                              id="transmission"
-                              min={0}
-                              max={1}
-                              step={0.01}
-                              value={[transmission]}
-                              onValueChange={(value) => setTransmission(value[0])}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="envMapIntensity">Environment Reflection: {envMapIntensity.toFixed(1)}</Label>
-                            <Slider
-                              id="envMapIntensity"
-                              min={0}
-                              max={3}
-                              step={0.1}
-                              value={[envMapIntensity]}
-                              onValueChange={(value) => setEnvMapIntensity(value[0])}
-                            />
-                          </div>
-                        </>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="environment" className="space-y-4">
+                <TabsContent value="environment" className="space-y-4">
                       <Alert className="bg-muted/50 mb-4">
                         <AlertDescription className="text-xs flex items-center">
                           <InfoIcon className="h-4 w-4 mr-2" />
@@ -738,158 +949,229 @@ export default function EditPage() {
                         </AlertDescription>
                       </Alert>
                       
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="useEnvironment"
-                          checked={useEnvironment}
-                          onCheckedChange={(checked) => setUseEnvironment(checked as boolean)}
-                        />
-                        <Label htmlFor="useEnvironment">Use Environment Lighting</Label>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="useEnvironment"
+                      checked={useEnvironment}
+                      onCheckedChange={(checked) => setUseEnvironment(checked as boolean)}
+                    />
+                    <Label htmlFor="useEnvironment">Use Environment Lighting</Label>
+                  </div>
+
+                  {useEnvironment && (
+                    <>
+                    <div className="space-y-2">
+                      <Label htmlFor="environmentPreset">Environment Preset</Label>
+                      <Select 
+                        value={environmentPreset} 
+                        onValueChange={setEnvironmentPreset}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select environment" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ENVIRONMENT_PRESETS.map((preset) => (
+                            <SelectItem key={preset.name} value={preset.name}>
+                              {preset.label}
+                            </SelectItem>
+                          ))}
+                          {customHdriUrl && (
+                            <SelectItem value="custom">Custom Image</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                       </div>
 
-                      {useEnvironment && (
-                        <>
-                          <div className="space-y-2">
-                            <Label htmlFor="environmentPreset">Environment Preset</Label>
-                            <Select 
-                              value={environmentPreset} 
-                              onValueChange={setEnvironmentPreset}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select environment" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {ENVIRONMENT_PRESETS.map((preset) => (
-                                  <SelectItem key={preset.name} value={preset.name}>
-                                    {preset.label}
-                                  </SelectItem>
-                                ))}
-                                {customHdriUrl && (
-                                  <SelectItem value="custom">Custom Image</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Visual Indicators for Environment Presets */}
-                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-3">
-                            {ENVIRONMENT_PRESETS.map((preset) => (
-                              <div 
-                                key={preset.name} 
-                                className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                                  environmentPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
-                                }`}
-                                onClick={() => setEnvironmentPreset(preset.name)}
-                              >
-                                <div 
-                                  className="w-12 h-12 rounded-full mb-1 overflow-hidden"
-                                  style={{ 
-                                    background: preset.color,
-                                    boxShadow: '0 0 8px rgba(0,0,0,0.15) inset'
-                                  }}
-                                />
-                                <span className="text-xs font-medium text-center">{preset.label.split(' ')[0]}</span>
-                              </div>
-                            ))}
-                            
-                            {/* Custom upload option in the grid */}
+                      {/* Visual Indicators for Environment Presets */}
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-3">
+                        {ENVIRONMENT_PRESETS.map((preset) => (
+                          <div 
+                            key={preset.name} 
+                            className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                              environmentPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                            }`}
+                            onClick={() => setEnvironmentPreset(preset.name)}
+                          >
                             <div 
-                              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                                environmentPreset === 'custom' ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
-                              }`}
-                              onClick={() => {
-                                if (customHdriUrl) {
-                                  setEnvironmentPreset('custom');
-                                } else {
-                                  hdriFileInputRef.current?.click();
-                                }
+                              className="w-12 h-12 rounded-full mb-1 overflow-hidden"
+                              style={{ 
+                                background: preset.color,
+                                boxShadow: '0 0 8px rgba(0,0,0,0.15) inset'
                               }}
-                            >
-                              <input
-                                ref={hdriFileInputRef}
-                                type="file"
-                                accept="image/jpeg,image/jpg,image/png" 
-                                className="hidden"
-                                onChange={handleHdriFileChange}
-                              />
-                              
-                              {customHdriUrl ? (
-                                <>
-                                  <div 
-                                    className="w-12 h-12 rounded-full mb-1 overflow-hidden"
-                                    style={{ 
-                                      backgroundImage: `url(${customHdriUrl})`,
-                                      backgroundSize: 'cover',
-                                      backgroundPosition: 'center'
-                                    }}
-                                  />
-                                  <span className="text-xs font-medium">Custom</span>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="w-12 h-12 rounded-full mb-1 flex items-center justify-center bg-primary/10">
-                                    <span className="text-2xl font-semibold text-primary">+</span>
-                                  </div>
-                                  <span className="text-xs font-medium">Custom</span>
-                                </>
-                              )}
-                            </div>
+                            />
+                            <span className="text-xs font-medium text-center">{preset.label.split(' ')[0]}</span>
                           </div>
-
-                          {environmentPreset === 'custom' && (
-                            <div className="mt-3 p-3 bg-muted/30 rounded-md">
-                              {customImageError ? (
-                                <div className="space-y-2">
-                                  <Alert variant="destructive" className="mb-2">
-                                    <AlertDescription className="text-xs flex items-center">
-                                    <AlertTriangle className="h-4 w-4 mr-2" />
-                                      {customImageError}
-                                    </AlertDescription>
-                                  </Alert>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="text-xs h-7 w-full"
-                                    onClick={() => {
-                                      setCustomImageError(null);
-                                      hdriFileInputRef.current?.click();
-                                    }}
-                                  >
-                                    Try Again
-                                  </Button>
-                                </div>
-                              ) : customHdriUrl ? (
-                                <div className="flex items-start">
-                                  <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">
-                                      Your image will be used for reflections in the 3D model
-                                    </p>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="mt-2 text-xs h-7"
-                                      onClick={() => hdriFileInputRef.current?.click()}
-                                    >
-                                      Change Image
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-start">
-                                  <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
-                                  <p className="text-xs text-muted-foreground">
-                                    Select an image to use for reflections in the 3D model (JPG/PNG only)
-                                  </p>
-                                </div>
-                              )}
-                            </div>
+                        ))}
+                        
+                        {/* Custom upload option in the grid */}
+                        <div 
+                          className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                            environmentPreset === 'custom' ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                          }`}
+                          onClick={() => {
+                            if (customHdriUrl) {
+                              setEnvironmentPreset('custom');
+                            } else {
+                              hdriFileInputRef.current?.click();
+                            }
+                          }}
+                        >
+                          <input
+                            ref={hdriFileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png" 
+                            className="hidden"
+                            onChange={handleHdriFileChange}
+                          />
+                              
+                          {customHdriUrl ? (
+                            <>
+                              <div 
+                                className="w-12 h-12 rounded-full mb-1 overflow-hidden"
+                                style={{ 
+                                  backgroundImage: `url(${customHdriUrl})`,
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center'
+                                }}
+                              />
+                              <span className="text-xs font-medium">Custom</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-12 h-12 rounded-full mb-1 flex items-center justify-center bg-primary/10">
+                                <span className="text-2xl font-semibold text-primary">+</span>
+                              </div>
+                              <span className="text-xs font-medium">Custom</span>
+                            </>
                           )}
-                        </>
-                      )}
-                    </TabsContent>
+                        </div>
+                      </div>
 
-                    <TabsContent value="background" className="space-y-4">
+                      {environmentPreset === 'custom' && (
+                        <div className="mt-3 p-3 bg-muted/30 rounded-md">
+                          {customImageError ? (
+                            <div className="space-y-2">
+                              <Alert variant="destructive" className="mb-2">
+                                <AlertDescription className="text-xs flex items-center">
+                                  <AlertTriangle className="h-4 w-4 mr-2" />
+                                  {customImageError}
+                                </AlertDescription>
+                              </Alert>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-xs h-7 w-full"
+                                onClick={() => {
+                                  setCustomImageError(null);
+                                  hdriFileInputRef.current?.click();
+                                }}
+                              >
+                                Try Again
+                        </Button>
+                            </div>
+                          ) : customHdriUrl ? (
+                            <div className="flex items-start">
+                              <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
+                              <div>
+                                <p className="text-xs text-muted-foreground">
+                                  Your image will be used for reflections in the 3D model
+                                </p>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="mt-2 text-xs h-7"
+                                  onClick={() => hdriFileInputRef.current?.click()}
+                                >
+                                  Change Image
+                                </Button>
+                      </div>
+                    </div>
+                          ) : (
+                            <div className="flex items-start">
+                              <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
+                              <p className="text-xs text-muted-foreground">
+                                Select an image to use for reflections in the 3D model (JPG/PNG only)
+                              </p>
+                    </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                      
+                  {/* Vibe Mode with button instead of checkbox */}
+                  <div className="space-y-2 pt-4 mt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="vibeMode" className="text-sm font-medium">Vibe Mode</Label>
+                      <Button 
+                        variant={useBloom ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          const newValue = !useBloom;
+                          toggleVibeMode(newValue);
+                        }}
+                      >
+                        {useBloom ? "Enabled" : "Enable"}
+                      </Button>
+                    </div>
+                    
+                    {useBloom && (
+                      <div className="space-y-3 mt-2 p-3 bg-muted/20 rounded-md">
+                        <div className="space-y-2">
+                          <Label htmlFor="bloomIntensity">Glow Intensity: {bloomIntensity.toFixed(1)}</Label>
+                          <Slider
+                            id="bloomIntensity"
+                            min={0.1}
+                            max={4.0}
+                            step={0.1}
+                            value={[bloomIntensity]}
+                            onValueChange={(value) => setBloomIntensity(value[0])}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="bloomThreshold">Glow Threshold: {bloomThreshold.toFixed(1)}</Label>
+                          <Slider
+                            id="bloomThreshold"
+                            min={0.1}
+                            max={0.9}
+                            step={0.05}
+                            value={[bloomThreshold]}
+                            onValueChange={(value) => setBloomThreshold(value[0])}
+                          />
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="bloomMipmapBlur"
+                            checked={bloomMipmapBlur}
+                            onCheckedChange={(checked) => {
+                              if (typeof checked === 'boolean') {
+                                setBloomMipmapBlur(checked);
+                              }
+                            }}
+                          />
+                          <Label htmlFor="bloomMipmapBlur">Soft Glow</Label>
+                        </div>
+                        
+                        {/* Model Rotation Control moved inside Vibe Mode */}
+                        <div className="space-y-2 mt-2 pt-2 border-t">
+                          <Label htmlFor="modelRotation">Model Rotation: {(modelRotationY * (180/Math.PI)).toFixed(0)}°</Label>
+                          <Slider
+                            id="modelRotation"
+                            min={0}
+                            max={2 * Math.PI}
+                            step={Math.PI / 12}
+                            value={[modelRotationY]}
+                            onValueChange={(value) => setModelRotationY(value[0])}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="background" className="space-y-4">
                       <Alert className="bg-muted/50 mb-4">
                         <AlertDescription className="text-xs flex items-center">
                           <InfoIcon className="h-4 w-4 mr-2" />
@@ -897,49 +1179,49 @@ export default function EditPage() {
                         </AlertDescription>
                       </Alert>
                     
-                      <div className="space-y-4">
-                        <Label>Background Color</Label>
+                  <div className="space-y-4">
+                    <Label>Background Color</Label>
                         <div className="flex items-center mb-2 text-sm text-muted-foreground">
                           <span>Currently using: {userSelectedBackground ? 'Custom selection' : 'Theme default'}</span>
                         </div>
-                        <div className="grid grid-cols-5 gap-2">
-                          {SOLID_COLOR_PRESETS.map((preset) => (
-                            <div 
-                              key={preset.name} 
-                              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                                solidColorPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
-                              }`}
+                    <div className="grid grid-cols-5 gap-2">
+                      {SOLID_COLOR_PRESETS.map((preset) => (
+                        <div 
+                          key={preset.name} 
+                          className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                            solidColorPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                          }`}
                               onClick={() => handleBackgroundChange(preset.color, preset.name)}
-                            >
-                              <div 
-                                className="w-12 h-12 rounded-full mb-1"
-                                style={{ 
-                                  background: preset.color
-                                }}
-                              />
-                              <span className="text-xs font-medium">{preset.label}</span>
-                            </div>
-                          ))}
+                        >
+                          <div 
+                            className="w-12 h-12 rounded-full mb-1"
+                            style={{ 
+                              background: preset.color
+                            }}
+                          />
+                          <span className="text-xs font-medium">{preset.label}</span>
                         </div>
-                        
-                        <div className="space-y-2 pt-2">
-                          <Label htmlFor="backgroundColor">Custom Color</Label>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="color"
-                              id="backgroundColor"
-                              value={backgroundColor}
+                      ))}
+                    </div>
+                    
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="backgroundColor">Custom Color</Label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="color"
+                          id="backgroundColor"
+                          value={backgroundColor}
                               onChange={(e) => handleBackgroundChange(e.target.value, "custom")}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <input
-                              type="text"
-                              value={backgroundColor}
+                          className="w-10 h-10 rounded cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={backgroundColor}
                               onChange={(e) => handleBackgroundChange(e.target.value, "custom")}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            />
-                          </div>
-                        </div>
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
 
                         <div className="pt-2">
                           <Button 
@@ -959,14 +1241,14 @@ export default function EditPage() {
                           >
                             Reset to Theme Default
                           </Button>
-                        </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
                       </div>
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+        </div>
         )}
       </div>
     </main>

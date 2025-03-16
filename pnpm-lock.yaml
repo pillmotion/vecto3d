@@ -98,6 +98,9 @@ importers:
       '@react-three/fiber':
         specifier: latest
         version: 9.1.0(zht5ua6suwuk2q6r6gxs6mrxv4)
+      '@react-three/postprocessing':
+        specifier: ^3.0.4
+        version: 3.0.4(@react-three/fiber@9.1.0(zht5ua6suwuk2q6r6gxs6mrxv4))(@types/three@0.174.0)(react@19.0.0)(three@0.174.0)
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.21(postcss@8.5.3)
@@ -140,6 +143,9 @@ importers:
       next-themes:
         specifier: ^0.4.4
         version: 0.4.6(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      postprocessing:
+        specifier: ^6.37.1
+        version: 6.37.1(three@0.174.0)
       react:
         specifier: ^19
         version: 19.0.0
@@ -2004,6 +2010,13 @@ packages:
       react-native:
         optional: true
 
+  '@react-three/postprocessing@3.0.4':
+    resolution: {integrity: sha512-e4+F5xtudDYvhxx3y0NtWXpZbwvQ0x1zdOXWTbXMK6fFLVDd4qucN90YaaStanZGS4Bd5siQm0lGL/5ogf8iDQ==}
+    peerDependencies:
+      '@react-three/fiber': ^9.0.0
+      react: ^19.0
+      three: '>= 0.156.0'
+
   '@segment/loosely-validate-event@2.0.0':
     resolution: {integrity: sha512-ZMCSfztDBqwotkl848ODgVcAmN4OItEWDCkshcKz0/W6gGSQayuuCtWV/MlodFivAZD793d6UgANd6wCXUfrIw==}
 
@@ -3573,6 +3586,12 @@ packages:
       '@types/three': '>=0.134.0'
       three: '>=0.134.0'
 
+  maath@0.6.0:
+    resolution: {integrity: sha512-dSb2xQuP7vDnaYqfoKzlApeRcR2xtN8/f7WV/TMAkBC8552TwTLtOO0JTcSygkYMjNDPoo6V01jTw/aPi4JrMw==}
+    peerDependencies:
+      '@types/three': '>=0.144.0'
+      three: '>=0.144.0'
+
   make-dir@2.1.0:
     resolution: {integrity: sha512-LS9X+dc8KLxXCb8dni79fLIIUA5VyZoyjSMCwTluaXA0o27cCK0bhXkpgw+sTXVpPy/lSO57ilRixqk0vDmtRA==}
     engines: {node: '>=6'}
@@ -3751,6 +3770,12 @@ packages:
 
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
+
+  n8ao@1.9.4:
+    resolution: {integrity: sha512-gbpAorQecZn2oGK/rheHxPTNwOxVsEC6216+Jr9tXHUk9L5VCE2q/uxsSrQpfNkZDoCmQHf7oSg3SYFWCAt0wg==}
+    peerDependencies:
+      postprocessing: '>=6.30.0'
+      three: '>=0.137'
 
   nanoid@3.3.9:
     resolution: {integrity: sha512-SppoicMGpZvbF1l3z4x7No3OlIjP7QJvC9XR7AhZr1kL133KHnKPztkKDc+Ir4aJ/1VhTySrtKhrsycmrMQfvg==}
@@ -4054,6 +4079,11 @@ packages:
   postcss@8.5.3:
     resolution: {integrity: sha512-dle9A3yYxlBSrt8Fu+IpjGT8SY8hN0mlaA6GY8t0P5PjIOZemULz/E2Bnm/2dcUOena75OTNkHI76uZBNUUq3A==}
     engines: {node: ^10 || ^12 || >=14}
+
+  postprocessing@6.37.1:
+    resolution: {integrity: sha512-fZszlSB8j+PaxtS8g4qMxdj+ifzvoCPnbHSOjclTlr4mbhd6/huQqOViM6lhhPIrW2fiZc+IRcnReoKYvyMwNg==}
+    peerDependencies:
+      three: '>= 0.157.0 < 0.175.0'
 
   potpack@1.0.2:
     resolution: {integrity: sha512-choctRBIV9EMT9WGAZHn3V7t0Z2pMQyl0EZE6pFc/6ml3ssw7Dlf/oAOvFwjm1HVsqfQN8GfeFyJ+d8tRzqueQ==}
@@ -7423,6 +7453,17 @@ snapshots:
       - '@types/react'
       - immer
 
+  '@react-three/postprocessing@3.0.4(@react-three/fiber@9.1.0(zht5ua6suwuk2q6r6gxs6mrxv4))(@types/three@0.174.0)(react@19.0.0)(three@0.174.0)':
+    dependencies:
+      '@react-three/fiber': 9.1.0(zht5ua6suwuk2q6r6gxs6mrxv4)
+      maath: 0.6.0(@types/three@0.174.0)(three@0.174.0)
+      n8ao: 1.9.4(postprocessing@6.37.1(three@0.174.0))(three@0.174.0)
+      postprocessing: 6.37.1(three@0.174.0)
+      react: 19.0.0
+      three: 0.174.0
+    transitivePeerDependencies:
+      - '@types/three'
+
   '@segment/loosely-validate-event@2.0.0':
     dependencies:
       component-type: 1.2.2
@@ -9064,6 +9105,11 @@ snapshots:
       '@types/three': 0.174.0
       three: 0.174.0
 
+  maath@0.6.0(@types/three@0.174.0)(three@0.174.0):
+    dependencies:
+      '@types/three': 0.174.0
+      three: 0.174.0
+
   make-dir@2.1.0:
     dependencies:
       pify: 4.0.1
@@ -9339,6 +9385,11 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
+  n8ao@1.9.4(postprocessing@6.37.1(three@0.174.0))(three@0.174.0):
+    dependencies:
+      postprocessing: 6.37.1(three@0.174.0)
+      three: 0.174.0
+
   nanoid@3.3.9: {}
 
   negotiator@0.6.3: {}
@@ -9597,6 +9648,10 @@ snapshots:
       nanoid: 3.3.9
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  postprocessing@6.37.1(three@0.174.0):
+    dependencies:
+      three: 0.174.0
 
   potpack@1.0.2: {}
 

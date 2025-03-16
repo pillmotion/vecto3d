@@ -2,7 +2,8 @@ import type React from "react"
 import "@/styles/globals.css"
 import {Instrument_Sans} from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster as UIToaster } from "@/components/ui/toaster"
+import { Toaster as SonnerToaster } from "sonner"
 
 const instrumentSans = Instrument_Sans({ subsets: ["latin"] })
 
@@ -28,8 +29,9 @@ export default function RootLayout({
       <body className={instrumentSans.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
+          <UIToaster />
+          <SonnerToaster position="top-right" richColors closeButton theme="system" />
         </ThemeProvider>
-        <Toaster />
       </body>
     </html>
   )
