@@ -109,6 +109,7 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(({
                       bevelSegments: bevelSegments,
                     },
                   ]}
+                  center
                 />
                 <meshPhysicalMaterial 
                   color={shape.color} 

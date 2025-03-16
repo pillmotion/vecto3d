@@ -219,7 +219,13 @@ export default function EditPage() {
     // Reset any previous errors
     setCustomImageError(null)
     
-    if (!file) return
+    if (!file) {
+      setCustomImageError("No file selected")
+      toast.error("No file selected", {
+        description: "Please select an image file to upload",
+      })
+      return
+    }
     
     // Check if the file type is supported
     const fileType = file.type.toLowerCase()
@@ -244,19 +250,52 @@ export default function EditPage() {
     }
     
     const reader = new FileReader()
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setCustomHdriUrl(event.target.result as string)
-        setEnvironmentPreset('custom')
+    // Show loading toast
+    const loadingToast = toast.loading("Processing image...")
+    
+    try {
+      reader.onload = (event) => {
+        // Dismiss loading toast
+        toast.dismiss(loadingToast)
+        
+        if (event.target?.result) {
+          setCustomHdriUrl(event.target.result as string)
+          setEnvironmentPreset('custom')
+          // Reset error state on successful load
+          setCustomImageError(null)
+          toast.success("Image uploaded successfully", {
+            description: "Your custom image has been applied",
+          })
+        } else {
+          setCustomImageError("Failed to process image")
+          toast.error("Failed to process image", {
+            description: "The image could not be processed",
+          })
+        }
       }
-    }
-    reader.onerror = () => {
+      
+      reader.onerror = (error) => {
+        // Dismiss loading toast
+        toast.dismiss(loadingToast)
+        
+        console.error("FileReader error:", error)
+        setCustomImageError("Failed to read file")
+        toast.error("Failed to read the image file", {
+          description: "Please try again with a different image",
+        })
+      }
+      
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error("File reading error:", error)
       setCustomImageError("Failed to read file")
       toast.error("Failed to read the image file", {
-        description: "Failed to read the image file",
+        description: "An unexpected error occurred",
       })
     }
-    reader.readAsDataURL(file)
+    
+    // Clear the input value to allow selecting the same file again
+    e.target.value = ''
   }
 
   const handleExport = async (format: "stl" | "gltf" | "glb") => {
@@ -454,6 +493,7 @@ export default function EditPage() {
                       enablePan={true}
                       enableZoom={true}
                       enableRotate={true}
+                      target={[0, 0, 0]}
                     />
                   </Canvas>
                 ) : (
@@ -482,11 +522,11 @@ export default function EditPage() {
 
                     <TabsContent value="geometry" className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="depth">Thickness: {depth * 5}</Label>
+                        <Label htmlFor="depth">Thickness: {depth}</Label>
                         <Slider
                           id="depth"
-                          min={5}
-                          max={20}
+                          min={1}
+                          max={50}
                           step={1}
                           value={[depth]}
                           onValueChange={(value) => setDepth(value[0])}
@@ -799,12 +839,25 @@ export default function EditPage() {
                           {environmentPreset === 'custom' && (
                             <div className="mt-3 p-3 bg-muted/30 rounded-md">
                               {customImageError ? (
-                                <Alert variant="destructive" className="mb-0">
-                                  <AlertTriangle className="h-4 w-4" />
-                                  <AlertDescription className="text-xs">
-                                    {customImageError}
-                                  </AlertDescription>
-                                </Alert>
+                                <div className="space-y-2">
+                                  <Alert variant="destructive" className="mb-2">
+                                    <AlertDescription className="text-xs flex items-center">
+                                    <AlertTriangle className="h-4 w-4 mr-2" />
+                                      {customImageError}
+                                    </AlertDescription>
+                                  </Alert>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-xs h-7 w-full"
+                                    onClick={() => {
+                                      setCustomImageError(null);
+                                      hdriFileInputRef.current?.click();
+                                    }}
+                                  >
+                                    Try Again
+                                  </Button>
+                                </div>
                               ) : customHdriUrl ? (
                                 <div className="flex items-start">
                                   <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />

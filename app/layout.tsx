@@ -9,7 +9,13 @@ const instrumentSans = Instrument_Sans({ subsets: ["latin"] })
 export const metadata = {
   title: "Vecto3d",
   description: "A super simple tool to convert SVG logos to 3D models",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: [
+      {media: "(prefers-color-scheme: light)", url: "/logo_light.svg"},
+      {media: "(prefers-color-scheme: dark)", url: "/logo_dark.svg"},
+    ]
+  }
 }
 
 export default function RootLayout({

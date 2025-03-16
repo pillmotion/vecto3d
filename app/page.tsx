@@ -7,7 +7,7 @@ import { Upload, Monitor, AlertTriangle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Logo } from "@/components/ui/logo"
-
+import Link from "next/link"
 export default function Home() {
   const [svgData, setSvgData] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string>("")
@@ -155,7 +155,7 @@ export default function Home() {
         )}
 
         <div className="mt-16 text-center text-sm text-muted-foreground">
-          <p>Vecto3D - Simple SVG to 3D conversion</p>
+          Vibe coded with <Link href="https://v0.dev" className="text-primary font-mono" target="_blank" rel="noopener noreferrer">v0.dev</Link> + Copilot by <Link href="https://lakshb.dev" className="underline" target="_blank" rel="noopener noreferrer">Lakshay Bhushan</Link>
         </div>
       </div>
     </main>
