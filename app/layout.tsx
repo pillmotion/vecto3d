@@ -2,6 +2,7 @@ import type React from "react"
 import "@/styles/globals.css"
 import {Instrument_Sans} from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
 
 const instrumentSans = Instrument_Sans({ subsets: ["latin"] })
 
@@ -22,6 +23,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
+        <Toaster />
       </body>
     </html>
   )

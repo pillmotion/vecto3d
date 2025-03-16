@@ -2,13 +2,13 @@
 
 import { useState, useRef, Suspense, useEffect } from "react"
 import { Canvas } from "@react-three/fiber"
-import { OrbitControls, Environment, Sky } from "@react-three/drei"
+import { OrbitControls, Environment, useTexture } from "@react-three/drei"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SVGModel } from "@/components/svg-model"
-import { Download, ChevronDown, ArrowLeft, Home, AlertTriangle, RotateCcw } from "lucide-react"
+import { Download, ChevronDown, AlertTriangle, RotateCcw, InfoIcon, ArrowLeft } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { exportToSTL, exportToGLTF } from "@/lib/exporters"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -22,20 +22,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Logo } from "@/components/ui/logo"
+import { useTheme } from "next-themes"
+import { toast } from "sonner"
+
+
 
 // Available HDRI environment presets
 const ENVIRONMENT_PRESETS = [
-  { name: "apartment", label: "Apartment (Indoor)" },
-  { name: "city", label: "City (Urban)" },
-  { name: "dawn", label: "Dawn (Sunrise)" },
-  { name: "forest", label: "Forest (Natural)" },
-  { name: "lobby", label: "Lobby (Interior)" },
-  { name: "park", label: "Park (Daytime)" },
-  { name: "studio", label: "Studio (Neutral)" },
-  { name: "sunset", label: "Sunset (Warm)" },
-  { name: "warehouse", label: "Warehouse (Industrial)" },
+  { name: "apartment", label: "Apartment (Indoor)", color: "#e0ccae" },
+  { name: "city", label: "City (Urban)", color: "#b4bdc6" },
+  { name: "dawn", label: "Dawn (Sunrise)", color: "#ffd0b0" },
+  { name: "forest", label: "Forest (Natural)", color: "#a8c0a0" },
+  { name: "lobby", label: "Lobby (Interior)", color: "#d8c8b8" },
+  { name: "park", label: "Park (Daytime)", color: "#b3d9ff" },
+  { name: "studio", label: "Studio (Neutral)", color: "#d9d9d9" },
+  { name: "sunset", label: "Sunset (Warm)", color: "#ffb98c" },
+  { name: "warehouse", label: "Warehouse (Industrial)", color: "#9ba3ad" },
 ]
+
+// Add theme-aware background color presets
+const DARK_MODE_COLOR = "#121212"
+const LIGHT_MODE_COLOR = "#f5f5f5"
 
 // Add solid color presets
 const SOLID_COLOR_PRESETS = [
@@ -95,6 +102,20 @@ const MATERIAL_PRESETS = [
   }
 ]
 
+// Custom environment component that uses a texture instead of a direct HDRI
+function CustomEnvironment({ imageUrl }: { imageUrl: string }) {
+  const texture = useTexture(imageUrl)
+  
+  // Convert the texture to an environment map
+  useEffect(() => {
+    if (texture) {
+      texture.mapping = THREE.EquirectangularReflectionMapping
+    }
+  }, [texture])
+  
+  return <Environment map={texture} background={false} />
+}
+
 export default function EditPage() {
   const [svgData, setSvgData] = useState<string | null>(null)
   const [depth, setDepth] = useState<number>(5)
@@ -123,10 +144,11 @@ export default function EditPage() {
   // Environment settings
   const [useEnvironment, setUseEnvironment] = useState<boolean>(true)
   const [environmentPreset, setEnvironmentPreset] = useState<string>("apartment")
-  const [useSky, setUseSky] = useState<boolean>(false)
   
-  // Background options - simplified to just solid color
-  const [backgroundColor, setBackgroundColor] = useState<string>("#f5f5f5")
+  // Background options - with theme awareness
+  const [userSelectedBackground, setUserSelectedBackground] = useState<boolean>(false)
+  const [backgroundColor, setBackgroundColor] = useState<string>(LIGHT_MODE_COLOR)
+  const [solidColorPreset, setSolidColorPreset] = useState<string>("light")
   
   // Auto-rotation controls - adjusted scale
   const [autoRotate, setAutoRotate] = useState<boolean>(true)
@@ -135,9 +157,24 @@ export default function EditPage() {
   const modelRef = useRef<THREE.Group>(null)
   const hdriFileInputRef = useRef<HTMLInputElement>(null)
   const [customHdriUrl, setCustomHdriUrl] = useState<string | null>(null)
-  const [solidColorPreset, setSolidColorPreset] = useState<string>("light")
   
   const router = useRouter()
+  const { theme } = useTheme()
+  
+  const [customImageError, setCustomImageError] = useState<string | null>(null)
+
+  // Theme detection effect
+  useEffect(() => {
+    if (!userSelectedBackground) {
+      if (theme === 'dark') {
+        setBackgroundColor(DARK_MODE_COLOR)
+        setSolidColorPreset('dark')
+      } else {
+        setBackgroundColor(LIGHT_MODE_COLOR)
+        setSolidColorPreset('light')
+      }
+    }
+  }, [theme, userSelectedBackground])
 
   // Detect mobile device on mount and window resize
   useEffect(() => {
@@ -178,16 +215,48 @@ export default function EditPage() {
 
   const handleHdriFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file && (file.type.includes('image'))) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCustomHdriUrl(event.target.result as string)
-          setEnvironmentPreset('custom')
-        }
-      }
-      reader.readAsDataURL(file)
+    
+    // Reset any previous errors
+    setCustomImageError(null)
+    
+    if (!file) return
+    
+    // Check if the file type is supported
+    const fileType = file.type.toLowerCase()
+    const isJpg = fileType === 'image/jpeg' || fileType === 'image/jpg'
+    const isPng = fileType === 'image/png'
+    
+    if (!isJpg && !isPng) {
+      setCustomImageError("Only JPG and PNG formats are supported")
+      toast.error("Unsupported file format", {
+        description: "Only JPG and PNG formats are supported",
+      })
+      return
     }
+    
+    // Check file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setCustomImageError("Image must be smaller than 10MB")
+      toast.error("File too large", {
+        description: "Image must be smaller than 10MB",
+      })
+      return
+    }
+    
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setCustomHdriUrl(event.target.result as string)
+        setEnvironmentPreset('custom')
+      }
+    }
+    reader.onerror = () => {
+      setCustomImageError("Failed to read file")
+      toast.error("Failed to read the image file", {
+        description: "Failed to read the image file",
+      })
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleExport = async (format: "stl" | "gltf" | "glb") => {
@@ -212,6 +281,12 @@ export default function EditPage() {
     setContinueOnMobile(true)
     localStorage.setItem('continueOnMobile', 'true')
   }
+  
+  const handleBackgroundChange = (color: string, preset: string) => {
+    setUserSelectedBackground(true)
+    setSolidColorPreset(preset)
+    setBackgroundColor(color)
+  }
 
   // Helper function to convert display rotation value to actual rotation speed
   const displayToActualRotation = (displayValue: number) => {
@@ -223,6 +298,11 @@ export default function EditPage() {
     return actualValue - 1.5; // Convert 2.5-7.5 actual scale to 1-5 display scale
   }
 
+  // Get environment preset by name
+  const getEnvironmentPresetByName = (name: string) => {
+    return ENVIRONMENT_PRESETS.find(preset => preset.name === name) || ENVIRONMENT_PRESETS[0]
+  }
+
   return (
     <main className="min-h-screen flex flex-col">
       {/* Fixed header/navbar */}
@@ -230,18 +310,15 @@ export default function EditPage() {
         <div className="container flex items-center justify-between h-16 px-4">
           <div className="flex items-center gap-2">
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="icon" 
               onClick={handleBackToHome} 
-              className="rounded-full"
               aria-label="Back to home"
+              className="rounded-md w-fit px-4 py-2"
             >
-              <Home className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5" />
+              <span className="hidden sm:inline">Back</span>
             </Button>
-            <div className="flex items-center">
-              <Logo className="h-8 w-8 text-primary mr-2" />
-              <h1 className="text-xl font-bold hidden sm:block">Vecto3D</h1>
-            </div>
           </div>
           
           {svgData && (
@@ -335,38 +412,22 @@ export default function EditPage() {
                     }}
                   >
                     <Suspense fallback={null}>
-                      {/* Background based on selected type */}
-                      {!useSky && (
-                        <color attach="background" args={[backgroundColor]} />
-                      )}
+                      {/* Background color */}
+                      <color attach="background" args={[backgroundColor]} />
 
                       {/* Add a low intensity ambient light for minimum illumination */}
                       <ambientLight intensity={0.5 * Math.PI} />
 
-                      {/* Environment and sky setup */}
+                      {/* Environment lighting */}
                       {useEnvironment && (
                         environmentPreset === 'custom' && customHdriUrl ? (
-                          <Environment 
-                            files={customHdriUrl} 
-                            background={false}
-                          />
+                          <CustomEnvironment imageUrl={customHdriUrl} />
                         ) : (
                           <Environment 
                             preset={environmentPreset as any} 
                             background={false}
                           />
                         )
-                      )}
-                      
-                      {useSky && (
-                        <Sky 
-                          distance={450000} 
-                          sunPosition={[0, 1, 0]} 
-                          inclination={0.6} 
-                          azimuth={0.25}
-                          rayleigh={1}
-                          turbidity={10}
-                        />
                       )}
 
                       <SVGModel
@@ -421,7 +482,7 @@ export default function EditPage() {
 
                     <TabsContent value="geometry" className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="depth">Extrusion Depth: {depth * 5}</Label>
+                        <Label htmlFor="depth">Thickness: {depth * 5}</Label>
                         <Slider
                           id="depth"
                           min={5}
@@ -630,6 +691,13 @@ export default function EditPage() {
                     </TabsContent>
 
                     <TabsContent value="environment" className="space-y-4">
+                      <Alert className="bg-muted/50 mb-4">
+                        <AlertDescription className="text-xs flex items-center">
+                          <InfoIcon className="h-4 w-4 mr-2" />
+                          Environment settings are for preview only and will not affect the exported 3D model.
+                        </AlertDescription>
+                      </Alert>
+                      
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id="useEnvironment"
@@ -640,63 +708,147 @@ export default function EditPage() {
                       </div>
 
                       {useEnvironment && (
-                        <div className="space-y-2">
-                          <Label htmlFor="environmentPreset">Environment Preset</Label>
-                          <Select 
-                            value={environmentPreset} 
-                            onValueChange={setEnvironmentPreset}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select environment" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ENVIRONMENT_PRESETS.map((preset) => (
-                                <SelectItem key={preset.name} value={preset.name}>
-                                  {preset.label}
-                                </SelectItem>
-                              ))}
-                              {customHdriUrl && (
-                                <SelectItem value="custom">Custom Image</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor="environmentPreset">Environment Preset</Label>
+                            <Select 
+                              value={environmentPreset} 
+                              onValueChange={setEnvironmentPreset}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select environment" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ENVIRONMENT_PRESETS.map((preset) => (
+                                  <SelectItem key={preset.name} value={preset.name}>
+                                    {preset.label}
+                                  </SelectItem>
+                                ))}
+                                {customHdriUrl && (
+                                  <SelectItem value="custom">Custom Image</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
 
-                          <div className="pt-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => hdriFileInputRef.current?.click()}
-                              className="w-full"
+                          {/* Visual Indicators for Environment Presets */}
+                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-3">
+                            {ENVIRONMENT_PRESETS.map((preset) => (
+                              <div 
+                                key={preset.name} 
+                                className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                                  environmentPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                                }`}
+                                onClick={() => setEnvironmentPreset(preset.name)}
+                              >
+                                <div 
+                                  className="w-12 h-12 rounded-full mb-1 overflow-hidden"
+                                  style={{ 
+                                    background: preset.color,
+                                    boxShadow: '0 0 8px rgba(0,0,0,0.15) inset'
+                                  }}
+                                />
+                                <span className="text-xs font-medium text-center">{preset.label.split(' ')[0]}</span>
+                              </div>
+                            ))}
+                            
+                            {/* Custom upload option in the grid */}
+                            <div 
+                              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                                environmentPreset === 'custom' ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                              }`}
+                              onClick={() => {
+                                if (customHdriUrl) {
+                                  setEnvironmentPreset('custom');
+                                } else {
+                                  hdriFileInputRef.current?.click();
+                                }
+                              }}
                             >
                               <input
                                 ref={hdriFileInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/jpg,image/png" 
                                 className="hidden"
                                 onChange={handleHdriFileChange}
                               />
-                              Upload Custom Image
-                            </Button>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Any image can be used as environment lighting
-                            </p>
+                              
+                              {customHdriUrl ? (
+                                <>
+                                  <div 
+                                    className="w-12 h-12 rounded-full mb-1 overflow-hidden"
+                                    style={{ 
+                                      backgroundImage: `url(${customHdriUrl})`,
+                                      backgroundSize: 'cover',
+                                      backgroundPosition: 'center'
+                                    }}
+                                  />
+                                  <span className="text-xs font-medium">Custom</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-12 h-12 rounded-full mb-1 flex items-center justify-center bg-primary/10">
+                                    <span className="text-2xl font-semibold text-primary">+</span>
+                                  </div>
+                                  <span className="text-xs font-medium">Custom</span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
 
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="useSky"
-                          checked={useSky}
-                          onCheckedChange={(checked) => setUseSky(checked as boolean)}
-                        />
-                        <Label htmlFor="useSky">Use Sky Background</Label>
-                      </div>
+                          {environmentPreset === 'custom' && (
+                            <div className="mt-3 p-3 bg-muted/30 rounded-md">
+                              {customImageError ? (
+                                <Alert variant="destructive" className="mb-0">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  <AlertDescription className="text-xs">
+                                    {customImageError}
+                                  </AlertDescription>
+                                </Alert>
+                              ) : customHdriUrl ? (
+                                <div className="flex items-start">
+                                  <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">
+                                      Your image will be used for reflections in the 3D model
+                                    </p>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="mt-2 text-xs h-7"
+                                      onClick={() => hdriFileInputRef.current?.click()}
+                                    >
+                                      Change Image
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-start">
+                                  <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
+                                  <p className="text-xs text-muted-foreground">
+                                    Select an image to use for reflections in the 3D model (JPG/PNG only)
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </TabsContent>
 
                     <TabsContent value="background" className="space-y-4">
+                      <Alert className="bg-muted/50 mb-4">
+                        <AlertDescription className="text-xs flex items-center">
+                          <InfoIcon className="h-4 w-4 mr-2" />
+                          Background settings are for preview only and will not be included in the exported 3D model.
+                        </AlertDescription>
+                      </Alert>
+                    
                       <div className="space-y-4">
                         <Label>Background Color</Label>
+                        <div className="flex items-center mb-2 text-sm text-muted-foreground">
+                          <span>Currently using: {userSelectedBackground ? 'Custom selection' : 'Theme default'}</span>
+                        </div>
                         <div className="grid grid-cols-5 gap-2">
                           {SOLID_COLOR_PRESETS.map((preset) => (
                             <div 
@@ -704,10 +856,7 @@ export default function EditPage() {
                               className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
                                 solidColorPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
                               }`}
-                              onClick={() => {
-                                setSolidColorPreset(preset.name);
-                                setBackgroundColor(preset.color);
-                              }}
+                              onClick={() => handleBackgroundChange(preset.color, preset.name)}
                             >
                               <div 
                                 className="w-12 h-12 rounded-full mb-1"
@@ -727,22 +876,36 @@ export default function EditPage() {
                               type="color"
                               id="backgroundColor"
                               value={backgroundColor}
-                              onChange={(e) => {
-                                setBackgroundColor(e.target.value);
-                                setSolidColorPreset("custom");
-                              }}
+                              onChange={(e) => handleBackgroundChange(e.target.value, "custom")}
                               className="w-10 h-10 rounded cursor-pointer"
                             />
                             <input
                               type="text"
                               value={backgroundColor}
-                              onChange={(e) => {
-                                setBackgroundColor(e.target.value);
-                                setSolidColorPreset("custom");
-                              }}
+                              onChange={(e) => handleBackgroundChange(e.target.value, "custom")}
                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             />
                           </div>
+                        </div>
+
+                        <div className="pt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setUserSelectedBackground(false)
+                              if (theme === 'dark') {
+                                setBackgroundColor(DARK_MODE_COLOR)
+                                setSolidColorPreset('dark')
+                              } else {
+                                setBackgroundColor(LIGHT_MODE_COLOR)
+                                setSolidColorPreset('light')
+                              }
+                            }}
+                            className="w-full"
+                          >
+                            Reset to Theme Default
+                          </Button>
                         </div>
                       </div>
                     </TabsContent>
