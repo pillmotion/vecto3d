@@ -434,7 +434,7 @@ export default function EditPage() {
 
   // Bloom effect settings - disabled by default
   const [useBloom, setUseBloom] = useState<boolean>(false)
-  const [bloomIntensity, setBloomIntensity] = useState<number>(2.0)
+  const [bloomIntensity, setBloomIntensity] = useState<number>(1.0)
   const [bloomMipmapBlur, setBloomMipmapBlur] = useState<boolean>(true)
   
   // Vibe Mode specific settings
