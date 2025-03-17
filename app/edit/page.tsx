@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SVGModel } from "@/components/svg-model"
-import { Download, ChevronDown, AlertTriangle, RotateCcw, InfoIcon, ArrowLeft, Camera, ImageIcon } from "lucide-react"
+import { ChevronDown, AlertTriangle, RotateCcw, InfoIcon, ArrowLeft, Camera, ImageIcon, Box } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { exportToSTL, exportToGLTF } from "@/lib/exporters"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -27,9 +27,10 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
-import { EffectComposer, Bloom, BrightnessContrast } from "@react-three/postprocessing"
+import { EffectComposer, Bloom, BrightnessContrast, SMAA, FXAA } from "@react-three/postprocessing"
 import { BlendFunction } from "postprocessing"
-
+import { useFrame } from "@react-three/fiber"
+import { Html } from "@react-three/drei"
 
 
 // Available HDRI environment presets
@@ -129,6 +130,25 @@ function CustomEnvironment({ imageUrl }: { imageUrl: string }) {
   return <Environment map={texture} background={false} />
 }
 
+// Simple environment component without animations
+function SimpleEnvironment({ environmentPreset, customHdriUrl }: { 
+  environmentPreset: string, 
+  customHdriUrl: string | null
+}) {
+  return (
+    <>
+      {environmentPreset === 'custom' && customHdriUrl ? (
+        <CustomEnvironment imageUrl={customHdriUrl} />
+      ) : (
+        <Environment 
+          preset={environmentPreset as any} 
+          background={false}
+        />
+      )}
+    </>
+  )
+}
+
 export default function EditPage() {
   const [svgData, setSvgData] = useState<string | null>(null)
   const [depth, setDepth] = useState<number>(5)
@@ -137,7 +157,7 @@ export default function EditPage() {
   const [bevelEnabled, setBevelEnabled] = useState<boolean>(true)
   const [bevelThickness, setBevelThickness] = useState<number>(1.0)
   const [bevelSize, setBevelSize] = useState<number>(0.5)
-  const [bevelSegments, setBevelSegments] = useState<number>(3)
+  const [bevelSegments, setBevelSegments] = useState<number>(8)
   
   const [fileName, setFileName] = useState<string>("")
   const [customColor, setCustomColor] = useState<string>("#3498db")
@@ -183,7 +203,6 @@ export default function EditPage() {
   // Bloom effect settings - disabled by default
   const [useBloom, setUseBloom] = useState<boolean>(false)
   const [bloomIntensity, setBloomIntensity] = useState<number>(2.0)
-  const [bloomThreshold, setBloomThreshold] = useState<number>(0.4)
   const [bloomMipmapBlur, setBloomMipmapBlur] = useState<boolean>(true)
   
   // Vibe Mode specific settings
@@ -386,9 +405,9 @@ export default function EditPage() {
       // Export using the invisible clone
       let success = false;
 
-      if (format === "stl") {
+    if (format === "stl") {
         success = await exportToSTL(modelGroupClone, `${baseName}.stl`);
-      } else if (format === "glb" || format === "gltf") {
+    } else if (format === "glb" || format === "gltf") {
         success = await exportToGLTF(modelGroupClone, `${baseName}.${format}`, format);
       }
       
@@ -453,6 +472,14 @@ export default function EditPage() {
 
   // When enabling/disabling Vibe Mode
   const toggleVibeMode = (newState: boolean) => {
+    // Check if custom image is selected
+    if (newState && environmentPreset === 'custom' && customHdriUrl) {
+      toast.error("Vibe Mode is not available with custom images", {
+        duration: 3000,
+      });
+      return; // Don't enable Vibe Mode
+    }
+    
     setUseBloom(newState);
     
     if (newState) {
@@ -505,6 +532,16 @@ export default function EditPage() {
     }
   }
 
+  // Add an effect to disable Vibe Mode when custom image is selected
+  useEffect(() => {
+    if (environmentPreset === 'custom' && customHdriUrl && useBloom) {
+      toggleVibeMode(false);
+      toast.info("Vibe Mode has been disabled because you selected a custom image", {
+        duration: 3000,
+      });
+    }
+  }, [environmentPreset, customHdriUrl]);
+
   return (
     <main className="min-h-screen flex flex-col">
       {/* Fixed header/navbar */}
@@ -525,11 +562,33 @@ export default function EditPage() {
 
           {svgData && (
             <div className="flex items-center gap-2">
+              {/* Export Image Button */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="flex items-center gap-1">
+                    <Camera className="h-4 w-4" />
+                    <span className="hidden sm:inline">Export Image</span>
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  {PNG_RESOLUTIONS.map((resolution) => (
+                    <DropdownMenuItem 
+                      key={resolution.multiplier}
+                      onSelect={() => handleExport("png", resolution.multiplier)}
+                    >
+                      {resolution.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              {/* Export 3D Model Button */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button size="sm" className="flex items-center gap-1">
-                    <Download className="h-4 w-4" />
-                    <span className="hidden sm:inline">Export</span>
+                    <Box className="h-4 w-4" />
+                    <span className="hidden sm:inline">Export 3D</span>
                     <ChevronDown className="h-4 w-4 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -543,28 +602,6 @@ export default function EditPage() {
                   <DropdownMenuItem onSelect={() => handleExport("gltf")}>
                     Export as GLTF (3D Editing)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => handleExport("png", 4)}>
-                    <Camera className="h-4 w-4 mr-2" />
-                    Save as PNG Image (2K)
-                  </DropdownMenuItem>
-                  
-                  {/* Image quality submenu */}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      Image Quality Options
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-36">
-                      {PNG_RESOLUTIONS.map((resolution) => (
-                        <DropdownMenuItem 
-                          key={resolution.multiplier}
-                          onSelect={() => handleExport("png", resolution.multiplier)}
-                        >
-                          {resolution.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -619,7 +656,7 @@ export default function EditPage() {
           /* Mobile-first design with order-last for preview on small screens */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 3D Preview - Order first on mobile so it appears at the top */}
-            <Card className="h-[400px] sm:h-[500px] lg:h-[600px] order-first lg:order-last">
+            <Card className="h-[400px] sm:h-[500px] lg:h-[600px] order-first lg:order-last relative overflow-hidden border-[1px] shadow-sm">
               <CardHeader className="p-4">
                 <CardTitle className="text-lg">3D Preview</CardTitle>
                 <CardDescription className="text-xs">
@@ -631,11 +668,19 @@ export default function EditPage() {
                   <Canvas 
                     shadows 
                     camera={{ position: [0, 0, 150], fov: 50 }}
+                    dpr={[1, 2]} // Set pixel ratio for better rendering
                     gl={{ 
+                      antialias: true,
                       outputColorSpace: "srgb",
                       toneMapping: THREE.ACESFilmicToneMapping,
                       toneMappingExposure: 1.5,
-                      preserveDrawingBuffer: true
+                      preserveDrawingBuffer: true,
+                      powerPreference: "high-performance",
+                      alpha: true,
+                      // Enhanced antialiasing
+                      logarithmicDepthBuffer: true,
+                      precision: "highp",
+                      stencil: true
                     }}
                   >
                     <Suspense fallback={null}>
@@ -645,18 +690,12 @@ export default function EditPage() {
                       {/* Add a low intensity ambient light for minimum illumination */}
                       <ambientLight intensity={0.5 * Math.PI} />
 
-                      {/* Environment lighting */}
+                      {/* Environment lighting without animations */}
                       {useEnvironment && (
-                        <>
-                          {environmentPreset === 'custom' && customHdriUrl ? (
-                            <CustomEnvironment imageUrl={customHdriUrl} />
-                          ) : (
-                            <Environment 
-                              preset={environmentPreset as any} 
-                              background={false}
-                            />
-                          )}
-                        </>
+                        <SimpleEnvironment 
+                          environmentPreset={environmentPreset}
+                          customHdriUrl={customHdriUrl}
+                        />
                       )}
 
                       <group ref={modelGroupRef} rotation={[0, modelRotationY, 0]}>
@@ -678,21 +717,28 @@ export default function EditPage() {
                       </group>
                     </Suspense>
                     
-                    {/* Add post-processing effects if enabled - enhanced for dreamy look */}
-                    {useBloom && (
-                      <EffectComposer>
+                    {/* Enhanced post-processing effects */}
+                    {useBloom ? (
+                      <EffectComposer multisampling={8}>
+                        <SMAA preserveEdges />
+                        <FXAA />
                         <Bloom 
-                          intensity={bloomIntensity * 0.7} // Reduced intensity for softer effect
-                          luminanceThreshold={bloomThreshold}
-                          luminanceSmoothing={0.95} // Increased for softer edges
+                          intensity={bloomIntensity * 0.7} 
+                          luminanceThreshold={0.4} 
+                          luminanceSmoothing={0.95} 
                           mipmapBlur={bloomMipmapBlur}
-                          radius={0.9} // Increased radius for more spread
+                          radius={0.9}
                         />
                         <BrightnessContrast
-                          brightness={0.07} // Slight brightness boost
-                          contrast={0.05} // Reduced contrast for dreamier look
+                          brightness={0.07}
+                          contrast={0.05}
                           blendFunction={BlendFunction.NORMAL}
                         />
+                      </EffectComposer>
+                    ) : (
+                      <EffectComposer multisampling={8}>
+                        <SMAA preserveEdges />
+                        <FXAA />
                       </EffectComposer>
                     )}
                     
@@ -713,6 +759,8 @@ export default function EditPage() {
                   </div>
                 )}
               </CardContent>
+              {/* Extra border at the bottom to fix glitching issue */}
+              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-border"></div>
             </Card>
 
             {/* Controls - Shown below the preview on mobile */}
@@ -959,7 +1007,7 @@ export default function EditPage() {
                   </div>
 
                   {useEnvironment && (
-                    <>
+                        <>
                     <div className="space-y-2">
                       <Label htmlFor="environmentPreset">Environment Preset</Label>
                       <Select 
@@ -980,194 +1028,202 @@ export default function EditPage() {
                           )}
                         </SelectContent>
                       </Select>
-                      </div>
-
-                      {/* Visual Indicators for Environment Presets */}
-                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-3">
-                        {ENVIRONMENT_PRESETS.map((preset) => (
-                          <div 
-                            key={preset.name} 
-                            className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                              environmentPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
-                            }`}
-                            onClick={() => setEnvironmentPreset(preset.name)}
-                          >
-                            <div 
-                              className="w-12 h-12 rounded-full mb-1 overflow-hidden"
-                              style={{ 
-                                background: preset.color,
-                                boxShadow: '0 0 8px rgba(0,0,0,0.15) inset'
-                              }}
-                            />
-                            <span className="text-xs font-medium text-center">{preset.label.split(' ')[0]}</span>
                           </div>
-                        ))}
-                        
-                        {/* Custom upload option in the grid */}
-                        <div 
-                          className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                            environmentPreset === 'custom' ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
-                          }`}
-                          onClick={() => {
-                            if (customHdriUrl) {
-                              setEnvironmentPreset('custom');
-                            } else {
-                              hdriFileInputRef.current?.click();
-                            }
-                          }}
+
+                          {/* Visual Indicators for Environment Presets */}
+                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-3">
+                            {ENVIRONMENT_PRESETS.map((preset) => (
+                              <div 
+                                key={preset.name} 
+                                className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                                  environmentPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                                }`}
+                                onClick={() => setEnvironmentPreset(preset.name)}
+                              >
+                                <div 
+                                  className="w-12 h-12 rounded-full mb-1 overflow-hidden"
+                                  style={{ 
+                                    background: preset.color,
+                                    boxShadow: '0 0 8px rgba(0,0,0,0.15) inset'
+                                  }}
+                                />
+                                <span className="text-xs font-medium text-center">{preset.label.split(' ')[0]}</span>
+                              </div>
+                            ))}
+                            
+                            {/* Custom upload option in the grid */}
+                            <div 
+                              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                                environmentPreset === 'custom' ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                              }`}
+                              onClick={() => {
+                                if (customHdriUrl) {
+                                  setEnvironmentPreset('custom');
+                                } else {
+                                  hdriFileInputRef.current?.click();
+                                }
+                              }}
                         >
                           <input
                             ref={hdriFileInputRef}
                             type="file"
-                            accept="image/jpeg,image/jpg,image/png" 
+                                accept="image/jpeg,image/jpg,image/png" 
                             className="hidden"
                             onChange={handleHdriFileChange}
                           />
-                              
-                          {customHdriUrl ? (
-                            <>
-                              <div 
-                                className="w-12 h-12 rounded-full mb-1 overflow-hidden"
-                                style={{ 
-                                  backgroundImage: `url(${customHdriUrl})`,
-                                  backgroundSize: 'cover',
-                                  backgroundPosition: 'center'
+                                  
+                              {customHdriUrl ? (
+                                <>
+                                  <div 
+                                    className="w-12 h-12 rounded-full mb-1 overflow-hidden"
+                                    style={{ 
+                                      backgroundImage: `url(${customHdriUrl})`,
+                                      backgroundSize: 'cover',
+                                      backgroundPosition: 'center'
+                                    }}
+                                  />
+                                  <span className="text-xs font-medium">Custom</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-12 h-12 rounded-full mb-1 flex items-center justify-center bg-primary/10">
+                                    <span className="text-2xl font-semibold text-primary">+</span>
+                                  </div>
+                                  <span className="text-xs font-medium">Custom</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {environmentPreset === 'custom' && (
+                            <div className="mt-3 p-3 bg-muted/30 rounded-md">
+                              {customImageError ? (
+                                <div className="space-y-2">
+                                  <Alert variant="destructive" className="mb-2">
+                                    <AlertDescription className="text-xs flex items-center">
+                                      <AlertTriangle className="h-4 w-4 mr-2" />
+                                      {customImageError}
+                                    </AlertDescription>
+                                  </Alert>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-xs h-7 w-full"
+                                    onClick={() => {
+                                      setCustomImageError(null);
+                                      hdriFileInputRef.current?.click();
+                                    }}
+                                  >
+                                    Try Again
+                        </Button>
+                                </div>
+                              ) : customHdriUrl ? (
+                                <div className="flex items-start">
+                                  <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">
+                                      Your image will be used for reflections in the 3D model
+                                    </p>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="mt-2 text-xs h-7"
+                                      onClick={() => hdriFileInputRef.current?.click()}
+                                    >
+                                      Change Image
+                                    </Button>
+                      </div>
+                    </div>
+                              ) : (
+                                <div className="flex items-start">
+                                  <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
+                                  <p className="text-xs text-muted-foreground">
+                                    Select an image to use for reflections in the 3D model (JPG/PNG only)
+                                  </p>
+                    </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Vibe Mode with button instead of checkbox - disabled for custom images */}
+                      <div className="space-y-2 pt-4 mt-4 border-t">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="vibeMode" className="text-sm font-medium">Vibe Mode</Label>
+                          {environmentPreset === 'custom' && customHdriUrl ? (
+                            <Button 
+                              variant="outline"
+                              size="sm"
+                              disabled={true}
+                              className="opacity-50 cursor-not-allowed"
+                            >
+                              Not Available
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant={useBloom ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                const newValue = !useBloom;
+                                toggleVibeMode(newValue);
+                              }}
+                            >
+                              {useBloom ? "Enabled" : "Enable"}
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {environmentPreset === 'custom' && customHdriUrl && (
+                          <Alert variant="destructive" className="mt-2 py-2">
+                            <AlertDescription className="text-xs flex items-center">
+                              <InfoIcon className="h-3 w-3 mr-1" />
+                              Vibe Mode is not available with custom images
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        
+                        {useBloom && (
+                          <div className="space-y-3 mt-2 p-3 bg-muted/20 rounded-md">
+                            <div className="space-y-2">
+                              <Label htmlFor="bloomIntensity">Glow Intensity: {bloomIntensity.toFixed(1)}</Label>
+                              <Slider
+                                id="bloomIntensity"
+                                min={0.1}
+                                max={4.0}
+                                step={0.1}
+                                value={[bloomIntensity]}
+                                onValueChange={(value) => setBloomIntensity(value[0])}
+                              />
+                            </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                                id="bloomMipmapBlur"
+                                checked={bloomMipmapBlur}
+                                onCheckedChange={(checked) => {
+                                  if (typeof checked === 'boolean') {
+                                    setBloomMipmapBlur(checked);
+                                  }
                                 }}
                               />
-                              <span className="text-xs font-medium">Custom</span>
-                            </>
-                          ) : (
-                            <>
-                              <div className="w-12 h-12 rounded-full mb-1 flex items-center justify-center bg-primary/10">
-                                <span className="text-2xl font-semibold text-primary">+</span>
-                              </div>
-                              <span className="text-xs font-medium">Custom</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {environmentPreset === 'custom' && (
-                        <div className="mt-3 p-3 bg-muted/30 rounded-md">
-                          {customImageError ? (
-                            <div className="space-y-2">
-                              <Alert variant="destructive" className="mb-2">
-                                <AlertDescription className="text-xs flex items-center">
-                                  <AlertTriangle className="h-4 w-4 mr-2" />
-                                  {customImageError}
-                                </AlertDescription>
-                              </Alert>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="text-xs h-7 w-full"
-                                onClick={() => {
-                                  setCustomImageError(null);
-                                  hdriFileInputRef.current?.click();
-                                }}
-                              >
-                                Try Again
-                        </Button>
+                              <Label htmlFor="bloomMipmapBlur">Soft Glow</Label>
                             </div>
-                          ) : customHdriUrl ? (
-                            <div className="flex items-start">
-                              <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
-                              <div>
-                                <p className="text-xs text-muted-foreground">
-                                  Your image will be used for reflections in the 3D model
-                                </p>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="mt-2 text-xs h-7"
-                                  onClick={() => hdriFileInputRef.current?.click()}
-                                >
-                                  Change Image
-                                </Button>
-                      </div>
-                    </div>
-                          ) : (
-                            <div className="flex items-start">
-                              <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
-                              <p className="text-xs text-muted-foreground">
-                                Select an image to use for reflections in the 3D model (JPG/PNG only)
-                              </p>
-                    </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                      
-                  {/* Vibe Mode with button instead of checkbox */}
-                  <div className="space-y-2 pt-4 mt-4 border-t">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="vibeMode" className="text-sm font-medium">Vibe Mode</Label>
-                      <Button 
-                        variant={useBloom ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => {
-                          const newValue = !useBloom;
-                          toggleVibeMode(newValue);
-                        }}
-                      >
-                        {useBloom ? "Enabled" : "Enable"}
-                      </Button>
-                    </div>
-                    
-                    {useBloom && (
-                      <div className="space-y-3 mt-2 p-3 bg-muted/20 rounded-md">
-                        <div className="space-y-2">
-                          <Label htmlFor="bloomIntensity">Glow Intensity: {bloomIntensity.toFixed(1)}</Label>
-                          <Slider
-                            id="bloomIntensity"
-                            min={0.1}
-                            max={4.0}
-                            step={0.1}
-                            value={[bloomIntensity]}
-                            onValueChange={(value) => setBloomIntensity(value[0])}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="bloomThreshold">Glow Threshold: {bloomThreshold.toFixed(1)}</Label>
-                          <Slider
-                            id="bloomThreshold"
-                            min={0.1}
-                            max={0.9}
-                            step={0.05}
-                            value={[bloomThreshold]}
-                            onValueChange={(value) => setBloomThreshold(value[0])}
-                          />
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="bloomMipmapBlur"
-                            checked={bloomMipmapBlur}
-                            onCheckedChange={(checked) => {
-                              if (typeof checked === 'boolean') {
-                                setBloomMipmapBlur(checked);
-                              }
-                            }}
-                          />
-                          <Label htmlFor="bloomMipmapBlur">Soft Glow</Label>
-                        </div>
-                        
-                        {/* Model Rotation Control moved inside Vibe Mode */}
-                        <div className="space-y-2 mt-2 pt-2 border-t">
-                          <Label htmlFor="modelRotation">Model Rotation: {(modelRotationY * (180/Math.PI)).toFixed(0)}°</Label>
-                          <Slider
-                            id="modelRotation"
-                            min={0}
-                            max={2 * Math.PI}
-                            step={Math.PI / 12}
-                            value={[modelRotationY]}
-                            onValueChange={(value) => setModelRotationY(value[0])}
-                          />
-                        </div>
-                      </div>
-                    )}
+                            
+                            {/* Model Rotation Control moved inside Vibe Mode */}
+                            <div className="space-y-2 mt-2 pt-2 border-t">
+                              <Label htmlFor="modelRotation">Model Rotation: {(modelRotationY * (180/Math.PI)).toFixed(0)}°</Label>
+                              <Slider
+                                id="modelRotation"
+                                min={0}
+                                max={2 * Math.PI}
+                                step={Math.PI / 12}
+                                value={[modelRotationY]}
+                                onValueChange={(value) => setModelRotationY(value[0])}
+                              />
+                            </div>
+                          </div>
+                        )}
                   </div>
                 </TabsContent>
 
