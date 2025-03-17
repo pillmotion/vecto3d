@@ -28,130 +28,186 @@ function downloadBlob(blob: Blob, filename: string) {
   }
 }
 
-// Export to STL format
-export const exportToSTL = (model: THREE.Group, filename: string) => {
-  try {
-    console.log("Exporting STL...", model)
-    
-    // Ensure model exists and has children
-    if (!model || !model.children || model.children.length === 0) {
-      console.error("Invalid model for STL export:", model)
-      throw new Error("Invalid model: Model is empty or undefined")
-    }
-    
-    // Create a copy to avoid modifying the original
-    const modelForExport = model.clone()
-    
-    // Force update matrices to ensure correct geometry
-    modelForExport.updateMatrixWorld(true)
-    
-    const exporter = new STLExporter()
-    console.log("STL Exporter created")
-    
-    const result = exporter.parse(modelForExport, { binary: true })
-    console.log("STL parsing completed, result type:", typeof result, "size:", result.byteLength)
-    
-    // When binary is true, the result is a binary blob that we can download directly
-    const blob = new Blob([result], { type: 'application/octet-stream' })
-    console.log("STL Blob created, size:", blob.size)
-    
-    downloadBlob(blob, filename)
-    
-    // Clean up cloned model
-    modelForExport.traverse((obj: THREE.Object3D) => {
-      // Cast to Mesh to access geometry and material
-      const mesh = obj as THREE.Mesh;
-      if (mesh.geometry) mesh.geometry.dispose();
-      if (mesh.material) {
-        if (Array.isArray(mesh.material)) {
-          mesh.material.forEach((m: THREE.Material) => m.dispose());
-        } else {
-          mesh.material.dispose();
-        }
+// Helper function to prepare model meshes for export
+export function prepareModelForExport(model: THREE.Object3D): THREE.Object3D {
+  // Clone the model to avoid modifying the original
+  const clonedModel = model.clone();
+  
+  // Reset transformation to prevent any unexpected rotation/position
+  clonedModel.position.set(0, 0, 0);
+  clonedModel.rotation.set(0, 0, 0);
+  clonedModel.scale.set(1, 1, 1);
+  clonedModel.updateMatrixWorld(true);
+  
+  // Create clean materials for export to prevent visual artifacts
+  const cleanMaterials = new Map<string, THREE.Material>();
+  
+  // Process all meshes to ensure proper export
+  clonedModel.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      const mesh = object as THREE.Mesh;
+      
+      // Type assertion for material
+      const material = mesh.material as THREE.Material;
+      
+      // Check if this mesh is a hole based on properties
+      const isHole = Boolean(
+        material.userData?.isHole || 
+        mesh.userData?.isHole || 
+        mesh.renderOrder > 0 || 
+        (material as THREE.MeshPhysicalMaterial)?.polygonOffsetFactor < 0
+      );
+      
+      // Create a simplified clean material or reuse one we've already created
+      const materialKey = isHole ? 'hole' : material.uuid;
+      
+      if (!cleanMaterials.has(materialKey)) {
+        const cleanMaterial = new THREE.MeshStandardMaterial({
+          color: isHole ? 0x000000 : (material as THREE.MeshPhysicalMaterial).color,
+          roughness: (material as THREE.MeshPhysicalMaterial).roughness || 0.3,
+          metalness: (material as THREE.MeshPhysicalMaterial).metalness || 0.5,
+          side: THREE.FrontSide,
+          // Apply different settings to hole materials
+          transparent: isHole,
+          opacity: isHole ? 0.5 : 1,
+          depthWrite: !isHole,
+          polygonOffset: true,
+          polygonOffsetFactor: isHole ? -2 : 1,
+          polygonOffsetUnits: 1
+        });
+        
+        cleanMaterial.userData.isHole = isHole;
+        cleanMaterials.set(materialKey, cleanMaterial);
       }
+      
+      // Apply the clean material
+      mesh.material = cleanMaterials.get(materialKey)!;
+      
+      // Store the hole status in the mesh's userData for later reference
+      mesh.userData.isHole = isHole;
+      
+      // For better hole handling in exports, position hole meshes slightly
+      // deeper than the main meshes to prevent z-fighting
+      if (isHole) {
+        // Apply a small z offset to hole meshes to ensure they properly
+        // cut through the main shape without z-fighting
+        const zOffset = 0.05;
+        
+        // Scale the hole slightly to ensure it fully penetrates the main shape
+        const scaleUp = 1.01;
+        mesh.scale.set(scaleUp, scaleUp, scaleUp + zOffset);
+        
+        // Update the matrix to apply these changes
+        mesh.updateMatrix();
+      }
+    }
+  });
+
+  return clonedModel;
+}
+
+// Cleanup resources after export
+export function cleanupExportedModel(model: THREE.Object3D): void {
+  // Optional cleanup steps after export
+  model.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      // Dispose of geometries and materials to prevent memory leaks
+      if (object.geometry) {
+        object.geometry.dispose();
+      }
+      
+      if (Array.isArray(object.material)) {
+        for (const material of object.material) {
+          material.dispose();
+        }
+      } else if (object.material) {
+        object.material.dispose();
+      }
+    }
+  });
+}
+
+// Export to STL format
+export async function exportToSTL(model: THREE.Object3D, fileName: string): Promise<boolean> {
+  try {
+    // Prepare the model for export
+    const exportModel = prepareModelForExport(model);
+    
+    // Export with unified settings
+    const exporter = new STLExporter();
+    const result = exporter.parse(exportModel, {
+      binary: true
     });
     
-    return true
+    // Cleanup the model after export
+    cleanupExportedModel(exportModel);
+    
+    // Create and trigger download
+    const blob = new Blob([result], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    
+    return true;
   } catch (error) {
-    console.error("STL export error:", error)
-    throw error
+    console.error('Error exporting to STL:', error);
+    return false;
   }
 }
 
 // Export to GLTF/GLB format
-export const exportToGLTF = (model: THREE.Group, filename: string, format: 'gltf' | 'glb' = 'glb') => {
+export async function exportToGLTF(
+  model: THREE.Object3D,
+  fileName: string,
+  format: 'gltf' | 'glb' = 'glb'
+): Promise<boolean> {
   try {
-    console.log("Exporting GLTF/GLB...", model)
+    // Prepare the model for export
+    const exportModel = prepareModelForExport(model);
     
-    // Ensure model exists and has children
-    if (!model || !model.children || model.children.length === 0) {
-      console.error("Invalid model for GLTF export:", model)
-      throw new Error("Invalid model: Model is empty or undefined")
-    }
-    
-    // Create a copy to avoid modifying the original
-    const modelForExport = model.clone()
-    
-    // Force update matrices to ensure correct geometry
-    modelForExport.updateMatrixWorld(true)
-    
-    console.log("GLTF Model prepared:", modelForExport)
-    
-    const exporter = new GLTFExporter()
-    console.log("GLTF Exporter created")
-    
+    // Create exporter with correct options
+    const exporter = new GLTFExporter();
     const options = {
       binary: format === 'glb',
-      trs: false,
-      onlyVisible: true,
-      truncateDrawRange: true,
-      animations: [],
-      forceIndices: false,
-      forcePowerOfTwoTextures: false,
+      trs: true,
+      onlyVisible: true
+    };
+    
+    // Export the model
+    const gltfData = await new Promise<ArrayBuffer | object>((resolve) => {
+      exporter.parse(
+        exportModel,
+        (result) => resolve(result),
+        (error) => {
+          console.error('GLTFExporter error:', error);
+          throw error;
+        },
+        options
+      );
+    });
+    
+    // Cleanup the model after export
+    cleanupExportedModel(exportModel);
+    
+    // Create and trigger download
+    let blob: Blob;
+    if (format === 'glb') {
+      blob = new Blob([gltfData as ArrayBuffer], { type: 'application/octet-stream' });
+    } else {
+      const jsonStr = JSON.stringify(gltfData, null, 2);
+      blob = new Blob([jsonStr], { type: 'application/json' });
     }
     
-    console.log("GLTF Export options:", options)
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
     
-    exporter.parse(
-      modelForExport,
-      (result: ArrayBuffer | object) => {
-        console.log("GLTF parsing completed, result type:", typeof result)
-        
-        if (format === 'glb') {
-          const blob = new Blob([result as ArrayBuffer], { type: 'application/octet-stream' })
-          console.log("GLB Blob created, size:", blob.size)
-          downloadBlob(blob, filename)
-        } else {
-          const blob = new Blob([JSON.stringify(result)], { type: 'text/plain' })
-          console.log("GLTF Blob created, size:", blob.size)
-          downloadBlob(blob, filename)
-        }
-        
-        // Clean up cloned model
-        modelForExport.traverse((obj: THREE.Object3D) => {
-          // Cast to Mesh to access geometry and material
-          const mesh = obj as THREE.Mesh;
-          if (mesh.geometry) mesh.geometry.dispose();
-          if (mesh.material) {
-            if (Array.isArray(mesh.material)) {
-              mesh.material.forEach((m: THREE.Material) => m.dispose());
-            } else {
-              mesh.material.dispose();
-            }
-          }
-        });
-      },
-      (error: ErrorEvent) => {
-        console.error('Error during GLTF export:', error)
-        throw error
-      },
-      options
-    )
-    
-    return true
+    return true;
   } catch (error) {
-    console.error("GLTF/GLB export error:", error)
-    throw error
+    console.error(`Error exporting to ${format.toUpperCase()}:`, error);
+    return false;
   }
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, Suspense, useEffect } from "react"
+import { useState, useRef, Suspense, useEffect, useMemo } from "react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, Environment, useTexture } from "@react-three/drei"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,7 @@ import { EffectComposer, Bloom, BrightnessContrast, SMAA, FXAA } from "@react-th
 import { BlendFunction } from "postprocessing"
 import { useFrame } from "@react-three/fiber"
 import { Html } from "@react-three/drei"
+import React from "react"
 
 
 // Available HDRI environment presets
@@ -110,10 +111,17 @@ const MATERIAL_PRESETS = [
 
 // Create constants for PNG export resolutions
 const PNG_RESOLUTIONS = [
-  { label: "Standard (1x)", multiplier: 1 },
-  { label: "HD (2x)", multiplier: 2 },
-  { label: "2K (4x)", multiplier: 4 },
-  { label: "4K (8x)", multiplier: 8 },
+  { label: "HD (1x)", multiplier: 1 },
+  { label: "2K (2x)", multiplier: 2 }
+]
+
+// Add bevel presets
+const BEVEL_PRESETS = [
+  { name: "none", label: "None", thickness: 0, size: 0, segments: 1 },
+  { name: "light", label: "Light", thickness: 0.5, size: 0.3, segments: 2 },
+  { name: "medium", label: "Medium", thickness: 1.0, size: 0.5, segments: 4 },
+  { name: "heavy", label: "Heavy", thickness: 2.0, size: 1.0, segments: 8 },
+  { name: "custom", label: "Custom", thickness: 1.0, size: 0.5, segments: 4 }
 ]
 
 // Custom environment component that uses a texture instead of a direct HDRI
@@ -149,7 +157,222 @@ function SimpleEnvironment({ environmentPreset, customHdriUrl }: {
   )
 }
 
+// Interface for ModelPreview component props
+interface ModelPreviewProps {
+  svgData: string
+  depth: number
+  modelRotationY: number
+  modelGroupRef: React.RefObject<THREE.Group | null>
+  modelRef: React.RefObject<THREE.Group | null>
+  // Geometry settings
+  bevelEnabled: boolean
+  bevelThickness: number
+  bevelSize: number
+  bevelSegments: number
+  isHollowSvg: boolean
+  spread: number
+  // Material settings
+  useCustomColor: boolean
+  customColor: string
+  roughness: number
+  metalness: number
+  clearcoat: number
+  transmission: number
+  envMapIntensity: number
+  // Environment settings
+  backgroundColor: string
+  useEnvironment: boolean
+  environmentPreset: string
+  customHdriUrl: string | null
+  // Rendering options
+  autoRotate: boolean
+  autoRotateSpeed: number
+  useBloom: boolean
+  bloomIntensity: number
+  bloomMipmapBlur: boolean
+  isMobile: boolean
+}
+
+// Split out model preview to a separate component to prevent unnecessary rerenders
+const ModelPreview = React.memo<ModelPreviewProps>(({ 
+  svgData, 
+  depth, 
+  modelRotationY, 
+  modelGroupRef, 
+  modelRef, 
+  // Geometry settings
+  bevelEnabled, 
+  bevelThickness, 
+  bevelSize, 
+  bevelSegments,
+  isHollowSvg,
+  spread,
+  // Material settings
+  useCustomColor,
+  customColor,
+  roughness,
+  metalness,
+  clearcoat,
+  transmission,
+  envMapIntensity,
+  // Environment settings
+  backgroundColor,
+  useEnvironment,
+  environmentPreset,
+  customHdriUrl,
+  // Rendering options
+  autoRotate,
+  autoRotateSpeed,
+  useBloom,
+  bloomIntensity,
+  bloomMipmapBlur,
+  isMobile
+}) => {
+  // Use ref to avoid recreating camera on each render
+  const cameraRef = useRef(new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000))
+  
+  // Update camera aspect ratio on resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (cameraRef.current) {
+        cameraRef.current.aspect = window.innerWidth / window.innerHeight
+        cameraRef.current.updateProjectionMatrix()
+      }
+    }
+    
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+  
+  // Configure post-processing based on options
+  const effects = useMemo(() => {
+    if (useBloom) {
+      return (
+        <EffectComposer multisampling={isMobile ? 0 : 4}>
+          <Bloom 
+            intensity={bloomIntensity * 0.7} 
+            luminanceThreshold={0.4} 
+            luminanceSmoothing={0.95} 
+            mipmapBlur={bloomMipmapBlur}
+            radius={0.9}
+          />
+          <BrightnessContrast
+            brightness={0.07}
+            contrast={0.05}
+            blendFunction={BlendFunction.NORMAL}
+          />
+        </EffectComposer>
+      )
+    } else if (!isMobile) {
+      return (
+        <EffectComposer multisampling={0}>
+          <SMAA preserveEdges />
+        </EffectComposer>
+      )
+    }
+    return null
+  }, [useBloom, bloomIntensity, bloomMipmapBlur, isMobile])
+  
+  // Create memoized environment component
+  const environment = useMemo(() => {
+    if (!useEnvironment) return null
+    
+    return (
+      <SimpleEnvironment 
+        environmentPreset={environmentPreset}
+        customHdriUrl={customHdriUrl}
+      />
+    )
+  }, [useEnvironment, environmentPreset, customHdriUrl])
+  
+  // Return null early if no SVG data
+  if (!svgData) return null
+  
+  return (
+    <Canvas 
+      shadows
+      camera={{ position: [0, 0, 150], fov: 50 }}
+      dpr={window?.devicePixelRatio || 1.5} // Adaptive pixel ratio based on device
+      frameloop="demand" // Only render when needed for better performance
+      performance={{ min: 0.5 }} // Allow adaptive performance
+      gl={{ 
+        antialias: true,
+        outputColorSpace: "srgb",
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: 1.2,
+        preserveDrawingBuffer: true,
+        powerPreference: "high-performance",
+        alpha: true,
+        // Optimize antialiasing for performance
+        logarithmicDepthBuffer: false,
+        precision: isMobile ? "mediump" : "highp",
+        stencil: false
+      }}
+    >
+      <Suspense fallback={null}>
+        {/* Background color */}
+        <color attach="background" args={[backgroundColor]} />
+
+        {/* Add a low intensity ambient light for minimum illumination */}
+        <ambientLight intensity={0.6 * Math.PI} />
+        
+        {/* Add directional light for better shape definition */}
+        <directionalLight 
+          position={[50, 50, 100]} 
+          intensity={0.8 * Math.PI} 
+          castShadow={false}
+        />
+
+        {/* Environment lighting */}
+        {environment}
+
+        <group ref={modelGroupRef} rotation={[0, modelRotationY, 0]}>
+          <SVGModel
+            svgData={svgData}
+            depth={depth * 5}
+            bevelEnabled={bevelEnabled}
+            bevelThickness={bevelThickness}
+            bevelSize={bevelSize}
+            bevelSegments={isMobile ? 3 : bevelSegments}
+            customColor={useCustomColor ? customColor : undefined}
+            roughness={roughness}
+            metalness={metalness}
+            clearcoat={clearcoat}
+            transmission={transmission}
+            envMapIntensity={useEnvironment ? envMapIntensity : 0.2}
+            receiveShadow={false}
+            castShadow={false}
+            isHollowSvg={isHollowSvg}
+            spread={spread}
+            ref={modelRef}
+          />
+        </group>
+      </Suspense>
+      
+      {/* Post-processing effects */}
+      {effects}
+      
+      <OrbitControls 
+        autoRotate={autoRotate}
+        autoRotateSpeed={autoRotateSpeed}
+        minDistance={50}
+        maxDistance={400}
+        enablePan={true}
+        enableZoom={true}
+        enableRotate={true}
+        target={[0, 0, 0]}
+      />
+    </Canvas>
+  )
+})
+
+// Ensure proper display name for React DevTools
+ModelPreview.displayName = 'ModelPreview'
+
 export default function EditPage() {
+  // React.useState imports before all the other hooks
   const [svgData, setSvgData] = useState<string | null>(null)
   const [depth, setDepth] = useState<number>(5)
   
@@ -157,7 +380,14 @@ export default function EditPage() {
   const [bevelEnabled, setBevelEnabled] = useState<boolean>(true)
   const [bevelThickness, setBevelThickness] = useState<number>(1.0)
   const [bevelSize, setBevelSize] = useState<number>(0.5)
-  const [bevelSegments, setBevelSegments] = useState<number>(8)
+  const [bevelSegments, setBevelSegments] = useState<number>(4)
+  const [bevelPreset, setBevelPreset] = useState<string>("medium")
+  
+  // Gap between inner and outer SVG parts to prevent glitching
+  const [spread, setSpread] = useState<number>(0)
+  
+  // Flag to determine if SVG has overlapping layers
+  const [hasOverlappingLayers, setHasOverlappingLayers] = useState<boolean>(false)
   
   const [fileName, setFileName] = useState<string>("")
   const [customColor, setCustomColor] = useState<string>("#3498db")
@@ -174,6 +404,9 @@ export default function EditPage() {
   const [envMapIntensity, setEnvMapIntensity] = useState<number>(initialPreset.envMapIntensity)
   const [transmission, setTransmission] = useState<number>(initialPreset.transmission)
   
+  // Hollow SVG optimization option
+  const [isHollowSvg, setIsHollowSvg] = useState<boolean>(false)
+  
   // Environment settings
   const [useEnvironment, setUseEnvironment] = useState<boolean>(true)
   const [environmentPreset, setEnvironmentPreset] = useState<string>("apartment")
@@ -186,18 +419,17 @@ export default function EditPage() {
   const [backgroundColor, setBackgroundColor] = useState<string>(LIGHT_MODE_COLOR)
   const [solidColorPreset, setSolidColorPreset] = useState<string>("light")
   
-  // Auto-rotation controls - adjusted scale
-  const [autoRotate, setAutoRotate] = useState<boolean>(true)
-  const [autoRotateSpeed, setAutoRotateSpeed] = useState<number>(3) // Middle value (represents 2.5+3=5.5)
+  // Auto-rotation controls - adjusted scale and DEFAULT OFF
+  const [autoRotate, setAutoRotate] = useState<boolean>(false) 
+  const [autoRotateSpeed, setAutoRotateSpeed] = useState<number>(3)
   
-  const modelRef = useRef<THREE.Group>(null)
-  const modelGroupRef = useRef<THREE.Group>(null)
+  // Use useRef for objects that shouldn't trigger re-renders
+  const modelRef = useRef<THREE.Group | null>(null)
+  const modelGroupRef = useRef<THREE.Group | null>(null)
   const hdriFileInputRef = useRef<HTMLInputElement>(null)
+  
+  // HDRI image state
   const [customHdriUrl, setCustomHdriUrl] = useState<string | null>(null)
-  
-  const router = useRouter()
-  const { theme } = useTheme()
-  
   const [customImageError, setCustomImageError] = useState<string | null>(null)
 
   // Bloom effect settings - disabled by default
@@ -209,23 +441,59 @@ export default function EditPage() {
   const [vibeModeMaterial, setVibeModeMaterial] = useState<string>("#000000")
   const [vibeModeOriginalMaterial, setVibeModeOriginalMaterial] = useState<string | null>(null)
   
-  // Theme detection effect
+  const router = useRouter()
+  const { theme } = useTheme()
+  
+  // Clean up resources when component unmounts
   useEffect(() => {
-    if (!userSelectedBackground) {
-      if (theme === 'dark' || useBloom) {
-        setBackgroundColor(DARK_MODE_COLOR)
-        setSolidColorPreset('dark')
-      } else {
-        setBackgroundColor(LIGHT_MODE_COLOR)
-        setSolidColorPreset('light')
+    return () => {
+      // Clear references to any large objects
+      if (customHdriUrl && customHdriUrl.startsWith('data:')) {
+        URL.revokeObjectURL(customHdriUrl)
       }
     }
+  }, [])
+
+  // Debounce expensive operations
+  const debouncedSvgData = useDebounce(svgData, 300)
+  
+  // Helper to detect if the SVG is potentially hollow based on path analysis
+  // And check for overlapping layers
+  useEffect(() => {
+    if (!debouncedSvgData) return
     
-    // Disable auto-rotation when vibe mode is enabled
-    if (useBloom) {
-      setAutoRotate(false)
-    }
-  }, [theme, userSelectedBackground, useBloom])
+    // More accurate hollow SVG detection:
+    // Look for indicators of hollow SVGs like icons with inner parts
+    const hasClosedPath = debouncedSvgData.includes('Z') || debouncedSvgData.includes('z')
+    const hasMultiplePaths = (debouncedSvgData.match(/<path/g) || []).length > 1
+    const hasCircles = debouncedSvgData.includes('<circle')
+    const hasEllipse = debouncedSvgData.includes('<ellipse')
+    const hasRect = debouncedSvgData.includes('<rect')
+    
+    // SVGs likely to have hollow parts:
+    // 1. Has multiple closed paths
+    // 2. Contains shapes like circles, ellipses or rectangles
+    // 3. Contains "smile" or "face" related SVGs (like emojis)
+    const isLikelyHollow = 
+      (hasClosedPath && (hasMultiplePaths || hasCircles || hasEllipse || hasRect)) ||
+      debouncedSvgData.toLowerCase().includes('smile') || 
+      debouncedSvgData.toLowerCase().includes('face')
+    
+    setIsHollowSvg(isLikelyHollow)
+    
+    // Check for overlapping layers that might need spread adjustment
+    // Multiple paths or shapes suggest potential for overlapping
+    const hasMultipleElements = 
+      hasMultiplePaths || 
+      hasCircles || 
+      hasEllipse || 
+      hasRect || 
+      debouncedSvgData.includes('<polygon') ||
+      debouncedSvgData.includes('<polyline') ||
+      (debouncedSvgData.match(/<g /g) || []).length > 1
+    
+    setHasOverlappingLayers(hasMultipleElements && isLikelyHollow)
+  }, [debouncedSvgData])
 
   // Detect mobile device on mount and window resize
   useEffect(() => {
@@ -338,6 +606,7 @@ export default function EditPage() {
     // Check group ref first, as that's the parent containing the actual model
     if (!modelGroupRef.current || !fileName) {
       console.error("Export failed: Model group or filename missing");
+      toast.error("Error: Cannot export - model not loaded");
       return;
     }
 
@@ -349,43 +618,75 @@ export default function EditPage() {
         // Special handling for PNG screenshot
         const canvas = document.querySelector("canvas");
         if (!canvas) {
-          console.error("Canvas element not found");
           toast.error("Could not find the 3D renderer");
           return false;
         }
         
-        // Use the provided resolution or default to 4x
-        const pngResolution = resolution || 4;
-        
-        // Show loading toast
-        const loadingToast = toast.loading(`Generating ${pngResolution}x resolution image...`);
+        // Use the provided resolution or default to 1x
+        const pngResolution = resolution || 1;
         
         try {
-          // Force a render to ensure the canvas is updated
-          setTimeout(() => {
-            try {
-              // Just use the canvas directly for the simplest approach
-              const dataURL = canvas.toDataURL('image/png', 1.0);
-              
-              // Create and trigger download
-              const link = document.createElement('a');
-              link.download = `${baseName}.png`;
-              link.href = dataURL;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              
-              toast.dismiss(loadingToast);
-              toast.success(`Image saved as ${baseName}.png`, { duration: 3000 });
-            } catch (error) {
-              console.error("Error exporting PNG:", error);
-              toast.dismiss(loadingToast);
-              toast.error("Failed to generate image");
-            }
-          }, 100); // Small delay to ensure rendering completes
+          // Create a temporary canvas with the desired resolution
+          const exportCanvas = document.createElement('canvas');
+          const ctx = exportCanvas.getContext('2d');
+          
+          if (!ctx) {
+            throw new Error("Could not get 2D context for export canvas");
+          }
+          
+          // Set the export canvas size based on the resolution
+          exportCanvas.width = canvas.width * pngResolution;
+          exportCanvas.height = canvas.height * pngResolution;
+          
+          // Get the WebGL renderer from Three.js
+          const renderer = (document.querySelector('canvas') as any)?.__r3f?.fiber?.renderer;
+          
+          if (renderer) {
+            // Save current pixel ratio
+            const currentPixelRatio = renderer.getPixelRatio();
+            
+            // Set higher pixel ratio for the screenshot
+            renderer.setPixelRatio(currentPixelRatio * pngResolution);
+            
+            // Force a render at the higher resolution
+            renderer.render(renderer.scene, renderer.camera);
+            
+            // Capture the high-resolution render
+            ctx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+            
+            // Reset pixel ratio to original
+            renderer.setPixelRatio(currentPixelRatio);
+            
+            // Render once more at original resolution
+            renderer.render(renderer.scene, renderer.camera);
+            
+            // Free up GPU resources by explicitly calling dispose where possible
+            renderer.renderLists.dispose();
+          } else {
+            // Fallback if we can't access the renderer
+            ctx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+          }
+          
+          // Get the image data as PNG
+          const dataURL = exportCanvas.toDataURL('image/png', 0.95);
+          
+          // Create and trigger download
+          const link = document.createElement('a');
+          link.download = `${baseName}.png`;
+          link.href = dataURL;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast.success(`Image saved as ${baseName}.png`, { duration: 3000 });
+          
+          // Clean up
+          exportCanvas.remove();
+          
+          // Explicitly release the dataURL to help garbage collection
+          URL.revokeObjectURL(dataURL);
         } catch (error) {
           console.error("Error exporting PNG:", error);
-          toast.dismiss(loadingToast);
           toast.error("Failed to generate image");
         }
         
@@ -405,9 +706,9 @@ export default function EditPage() {
       // Export using the invisible clone
       let success = false;
 
-    if (format === "stl") {
+      if (format === "stl") {
         success = await exportToSTL(modelGroupClone, `${baseName}.stl`);
-    } else if (format === "glb" || format === "gltf") {
+      } else if (format === "glb" || format === "gltf") {
         success = await exportToGLTF(modelGroupClone, `${baseName}.${format}`, format);
       }
       
@@ -432,9 +733,12 @@ export default function EditPage() {
         toast.success(`${baseName}.${format} has been downloaded successfully`, {
           duration: 3000,
         });
+      } else {
+        toast.error(`Failed to export ${format.toUpperCase()}`);
       }
     } catch (error) {
       console.error("Export error:", error);
+      toast.error(`Export failed: ${(error as Error).message || "Unknown error"}`);
     }
   }
 
@@ -541,6 +845,83 @@ export default function EditPage() {
       });
     }
   }, [environmentPreset, customHdriUrl]);
+
+  // Apply bevel preset
+  const applyBevelPreset = (presetName: string) => {
+    const preset = BEVEL_PRESETS.find(p => p.name === presetName)
+    if (preset) {
+      setBevelPreset(preset.name)
+      setBevelThickness(preset.thickness)
+      setBevelSize(preset.size)
+      setBevelSegments(preset.segments)
+      setBevelEnabled(preset.name !== "none")
+    }
+  }
+
+  // Optimize model preview using memoization
+  const renderModelPreview = () => {
+    if (!svgData) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded-lg">
+          <p className="text-muted-foreground">Loading model...</p>
+        </div>
+      )
+    }
+    
+    return (
+      <ModelPreview
+        svgData={svgData}
+        depth={depth}
+        modelRotationY={modelRotationY}
+        modelGroupRef={modelGroupRef}
+        modelRef={modelRef}
+        // Geometry settings
+        bevelEnabled={bevelEnabled}
+        bevelThickness={bevelThickness}
+        bevelSize={bevelSize}
+        bevelSegments={bevelSegments}
+        isHollowSvg={isHollowSvg}
+        spread={spread}
+        // Material settings
+        useCustomColor={useCustomColor}
+        customColor={customColor}
+        roughness={roughness}
+        metalness={metalness}
+        clearcoat={clearcoat}
+        transmission={transmission}
+        envMapIntensity={envMapIntensity}
+        // Environment settings
+        backgroundColor={backgroundColor}
+        useEnvironment={useEnvironment}
+        environmentPreset={environmentPreset}
+        customHdriUrl={customHdriUrl}
+        // Rendering options
+        autoRotate={autoRotate}
+        autoRotateSpeed={autoRotateSpeed}
+        useBloom={useBloom}
+        bloomIntensity={bloomIntensity}
+        bloomMipmapBlur={bloomMipmapBlur}
+        isMobile={isMobile}
+      />
+    )
+  }
+
+  // Custom hook for debouncing values
+  function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value)
+    
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value)
+      }, delay)
+      
+      return () => {
+        clearTimeout(handler)
+      }
+    }, [value, delay])
+    
+    return debouncedValue
+  }
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -664,100 +1045,7 @@ export default function EditPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 h-[calc(100%-80px)]">
-                {svgData ? (
-                  <Canvas 
-                    shadows 
-                    camera={{ position: [0, 0, 150], fov: 50 }}
-                    dpr={[1, 2]} // Set pixel ratio for better rendering
-                    gl={{ 
-                      antialias: true,
-                      outputColorSpace: "srgb",
-                      toneMapping: THREE.ACESFilmicToneMapping,
-                      toneMappingExposure: 1.5,
-                      preserveDrawingBuffer: true,
-                      powerPreference: "high-performance",
-                      alpha: true,
-                      // Enhanced antialiasing
-                      logarithmicDepthBuffer: true,
-                      precision: "highp",
-                      stencil: true
-                    }}
-                  >
-                    <Suspense fallback={null}>
-                      {/* Background color */}
-                      <color attach="background" args={[backgroundColor]} />
-
-                      {/* Add a low intensity ambient light for minimum illumination */}
-                      <ambientLight intensity={0.5 * Math.PI} />
-
-                      {/* Environment lighting without animations */}
-                      {useEnvironment && (
-                        <SimpleEnvironment 
-                          environmentPreset={environmentPreset}
-                          customHdriUrl={customHdriUrl}
-                        />
-                      )}
-
-                      <group ref={modelGroupRef} rotation={[0, modelRotationY, 0]}>
-                        <SVGModel
-                          svgData={svgData}
-                          depth={depth * 5}
-                          bevelEnabled={bevelEnabled}
-                          bevelThickness={bevelThickness}
-                          bevelSize={bevelSize}
-                          bevelSegments={bevelSegments}
-                          customColor={useCustomColor ? customColor : undefined}
-                          roughness={roughness}
-                          metalness={metalness}
-                          clearcoat={clearcoat}
-                          transmission={transmission}
-                          envMapIntensity={useEnvironment ? envMapIntensity : 0.2}
-                          ref={modelRef}
-                        />
-                      </group>
-                    </Suspense>
-                    
-                    {/* Enhanced post-processing effects */}
-                    {useBloom ? (
-                      <EffectComposer multisampling={8}>
-                        <SMAA preserveEdges />
-                        <FXAA />
-                        <Bloom 
-                          intensity={bloomIntensity * 0.7} 
-                          luminanceThreshold={0.4} 
-                          luminanceSmoothing={0.95} 
-                          mipmapBlur={bloomMipmapBlur}
-                          radius={0.9}
-                        />
-                        <BrightnessContrast
-                          brightness={0.07}
-                          contrast={0.05}
-                          blendFunction={BlendFunction.NORMAL}
-                        />
-                      </EffectComposer>
-                    ) : (
-                      <EffectComposer multisampling={8}>
-                        <SMAA preserveEdges />
-                        <FXAA />
-                      </EffectComposer>
-                    )}
-                    
-                    <OrbitControls 
-                      autoRotate={autoRotate}
-                      autoRotateSpeed={autoRotateSpeed}
-                      minDistance={50}
-                      maxDistance={400}
-                      enablePan={true}
-                      enableZoom={true}
-                      enableRotate={true}
-                      target={[0, 0, 0]}
-                    />
-                  </Canvas>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded-lg">
-                    <p className="text-muted-foreground">Loading model...</p>
-                  </div>
-                )}
+                {renderModelPreview()}
               </CardContent>
               {/* Extra border at the bottom to fix glitching issue */}
               <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-border"></div>
@@ -781,30 +1069,148 @@ export default function EditPage() {
 
                 <TabsContent value="geometry" className="space-y-4">
                   <div className="space-y-2">
-                        <Label htmlFor="depth">Thickness: {depth}</Label>
+                    <Label htmlFor="depth">Thickness: {depth}</Label>
                     <Slider
                       id="depth"
-                          min={1}
-                          max={50}
+                      min={1}
+                      max={50}
                       step={1}
                       value={[depth]}
                       onValueChange={(value) => setDepth(value[0])}
                     />
                   </div>
                   
-                  <div className="space-y-2 pt-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="bevelEnabled"
-                        checked={bevelEnabled}
-                        onCheckedChange={(checked) => setBevelEnabled(checked as boolean)}
-                      />
-                      <Label htmlFor="bevelEnabled">Enable Bevel</Label>
+                  {hasOverlappingLayers && (
+                    <div className="space-y-2">
+                      <Label htmlFor="spread">Hole Spread: {spread}%</Label>
+                      <div className="flex items-center space-x-2">
+                        <Slider
+                          id="spread"
+                          min={0}
+                          max={20}
+                          step={1}
+                          value={[spread]}
+                          onValueChange={(value) => setSpread(value[0])}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => setSpread(0)}
+                          title="Reset spread"
+                          className="h-7 w-7"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Adjust to eliminate glitches between overlapping parts
+                      </p>
                     </div>
+                  )}
+                  
+                  <div className="space-y-2 pt-2">
+                    <Label htmlFor="bevelPreset">Bevel Style</Label>
+                    <div className="grid grid-cols-5 gap-2 mb-3">
+                      {BEVEL_PRESETS.map((preset) => (
+                        <div 
+                          key={preset.name} 
+                          className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
+                            bevelPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+                          }`}
+                          onClick={() => applyBevelPreset(preset.name)}
+                        >
+                          <div 
+                            className="w-12 h-12 rounded-md mb-1 flex items-center justify-center overflow-hidden"
+                            style={
+                              preset.name === "none" 
+                                ? { 
+                                    background: 'transparent',
+                                    border: '1px solid hsl(210, 40%, 70%)'
+                                  }
+                                : preset.name === "custom" 
+                                  ? {
+                                      background: 'linear-gradient(135deg, hsl(250, 60%, 60%), hsl(210, 60%, 50%))',
+                                      border: '1px solid hsl(210, 40%, 70%)',
+                                      boxShadow: 'inset 0 0 8px rgba(255,255,255,0.5)',
+                                      borderRadius: '10%'
+                                    }
+                                  : { 
+                                      position: 'relative',
+                                      background: 'linear-gradient(135deg, hsl(210, 50%, 65%), hsl(210, 50%, 45%))',
+                                      border: '1px solid hsl(210, 40%, 70%)',
+                                      borderRadius: `${preset.size * 25}%`,
+                                      boxShadow: `
+                                        inset 0 0 0 ${preset.thickness}px rgba(255,255,255,0.3),
+                                        0 ${preset.thickness * 2}px ${preset.thickness * 3}px rgba(0,0,0,0.2)
+                                      `
+                                    }
+                            }
+                          >
+                            {preset.name === "none" && <span className="text-sm">ー</span>}
+                            {preset.name === "custom" && (
+                              <div className="text-white text-xs font-semibold relative z-10">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M3 17C3 17.5523 3.44772 18 4 18H10C10.5523 18 11 17.5523 11 17V13H3V17Z" fill="white"/>
+                                  <path d="M11 13V9C11 8.44772 10.5523 8 10 8H4C3.44772 8 3 8.44772 3 9V13H11Z" fill="white"/>
+                                  <path d="M12 9C12 8.44772 12.4477 8 13 8H19C19.5523 8 20 8.44772 20 9V17C20 17.5523 19.5523 18 19 18H13C12.4477 18 12 17.5523 12 17V9Z" fill="white"/>
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-xs font-medium">{preset.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Only show custom sliders if "custom" preset is selected */}
+                    {bevelEnabled && bevelPreset === "custom" && (
+                      <>
+                        <div className="space-y-2 mt-4">
+                          <Label htmlFor="bevelThickness">Bevel Thickness: {bevelThickness.toFixed(1)}</Label>
+                          <Slider
+                            id="bevelThickness"
+                            min={0}
+                            max={3}
+                            step={0.1}
+                            value={[bevelThickness]}
+                            onValueChange={(value) => {
+                              setBevelThickness(value[0])
+                            }}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="bevelSize">Bevel Size: {bevelSize.toFixed(1)}</Label>
+                          <Slider
+                            id="bevelSize"
+                            min={0}
+                            max={2}
+                            step={0.1}
+                            value={[bevelSize]}
+                            onValueChange={(value) => {
+                              setBevelSize(value[0])
+                            }}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="bevelSegments">Bevel Quality: {bevelSegments}</Label>
+                          <Slider
+                            id="bevelSegments"
+                            min={1}
+                            max={10}
+                            step={1}
+                            value={[bevelSegments]}
+                            onValueChange={(value) => {
+                              setBevelSegments(value[0])
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label>Model Rotation</Label>
+                  <div className="space-y-2 pt-2 mt-2 border-t">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="autoRotate"
@@ -821,8 +1227,8 @@ export default function EditPage() {
                         </Label>
                         <Slider
                           id="autoRotateSpeed"
-                              min={1}
-                              max={5}
+                          min={1}
+                          max={5}
                           step={0.5}
                           value={[actualToDisplayRotation(autoRotateSpeed)]}
                           onValueChange={(value) => setAutoRotateSpeed(displayToActualRotation(value[0]))}

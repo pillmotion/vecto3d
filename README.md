@@ -1,0 +1,2 @@
+- [ ] Add Umami for analytics
+- [ ] Open Graph Images
