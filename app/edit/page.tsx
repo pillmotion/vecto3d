@@ -19,20 +19,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
-import { EffectComposer, Bloom, BrightnessContrast, SMAA, FXAA } from "@react-three/postprocessing"
+import { EffectComposer, Bloom, BrightnessContrast, SMAA } from "@react-three/postprocessing"
 import { BlendFunction } from "postprocessing"
-import { useFrame } from "@react-three/fiber"
-import { Html } from "@react-three/drei"
 import React from "react"
-
 
 // Available HDRI environment presets
 const ENVIRONMENT_PRESETS = [
@@ -383,12 +377,6 @@ export default function EditPage() {
   const [bevelSegments, setBevelSegments] = useState<number>(4)
   const [bevelPreset, setBevelPreset] = useState<string>("medium")
   
-  // Gap between inner and outer SVG parts to prevent glitching
-  const [spread, setSpread] = useState<number>(0)
-  
-  // Flag to determine if SVG has overlapping layers
-  const [hasOverlappingLayers, setHasOverlappingLayers] = useState<boolean>(false)
-  
   const [fileName, setFileName] = useState<string>("")
   const [customColor, setCustomColor] = useState<string>("#3498db")
   const [useCustomColor, setUseCustomColor] = useState<boolean>(false)
@@ -458,7 +446,6 @@ export default function EditPage() {
   const debouncedSvgData = useDebounce(svgData, 300)
   
   // Helper to detect if the SVG is potentially hollow based on path analysis
-  // And check for overlapping layers
   useEffect(() => {
     if (!debouncedSvgData) return
     
@@ -480,19 +467,6 @@ export default function EditPage() {
       debouncedSvgData.toLowerCase().includes('face')
     
     setIsHollowSvg(isLikelyHollow)
-    
-    // Check for overlapping layers that might need spread adjustment
-    // Multiple paths or shapes suggest potential for overlapping
-    const hasMultipleElements = 
-      hasMultiplePaths || 
-      hasCircles || 
-      hasEllipse || 
-      hasRect || 
-      debouncedSvgData.includes('<polygon') ||
-      debouncedSvgData.includes('<polyline') ||
-      (debouncedSvgData.match(/<g /g) || []).length > 1
-    
-    setHasOverlappingLayers(hasMultipleElements && isLikelyHollow)
   }, [debouncedSvgData])
 
   // Detect mobile device on mount and window resize
@@ -881,7 +855,7 @@ export default function EditPage() {
         bevelSize={bevelSize}
         bevelSegments={bevelSegments}
         isHollowSvg={isHollowSvg}
-        spread={spread}
+        spread={0}
         // Material settings
         useCustomColor={useCustomColor}
         customColor={customColor}
@@ -1079,34 +1053,6 @@ export default function EditPage() {
                       onValueChange={(value) => setDepth(value[0])}
                     />
                   </div>
-                  
-                  {hasOverlappingLayers && (
-                    <div className="space-y-2">
-                      <Label htmlFor="spread">Hole Spread: {spread}%</Label>
-                      <div className="flex items-center space-x-2">
-                        <Slider
-                          id="spread"
-                          min={0}
-                          max={20}
-                          step={1}
-                          value={[spread]}
-                          onValueChange={(value) => setSpread(value[0])}
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          onClick={() => setSpread(0)}
-                          title="Reset spread"
-                          className="h-7 w-7"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Adjust to eliminate glitches between overlapping parts
-                      </p>
-                    </div>
-                  )}
                   
                   <div className="space-y-2 pt-2">
                     <Label htmlFor="bevelPreset">Bevel Style</Label>
