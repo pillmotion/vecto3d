@@ -16,6 +16,15 @@ import { EffectComposer, Bloom, BrightnessContrast, SMAA } from "@react-three/po
 import { BlendFunction } from "postprocessing"
 import React from "react"
 import { ModeToggle } from "@/components/ui/theme-toggle"
+import { motion, AnimatePresence } from "framer-motion"
+import { 
+  staggerContainer, 
+  cardAnimation, 
+  fadeUp,
+  modelContainerAnimation, 
+  tabContentAnimation,
+  pageTransition 
+} from "@/lib/animation-values"
 
 // Import extracted components
 import { GeometryControls } from "@/components/controls/geometry-controls"
@@ -548,9 +557,20 @@ export default function EditPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <motion.main 
+      className="min-h-screen flex flex-col"
+      variants={pageTransition}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
       {/* Fixed header/navbar */}
-      <header className="sticky top-0 z-10 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      <motion.header 
+        className="sticky top-0 z-10 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="container flex items-center justify-between h-16 px-4">
           <div className="flex items-center gap-2">
             <Button 
@@ -572,129 +592,187 @@ export default function EditPage() {
             )}
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Main content */}
       <div className="container flex-1 px-4 py-6">
-        {isMobile && !continueOnMobile ? (
-          <EditorMobileWarning 
-            onContinue={handleContinueOnMobile} 
-            onReturn={handleBackToHome}
-          />
-        ) : (
-          /* Mobile-first design with order-last for preview on small screens */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 3D Preview - Order first on mobile so it appears at the top */}
-            <Card className="h-[400px] sm:h-[500px] lg:h-[600px] order-first lg:order-last relative overflow-hidden border-[1px] shadow-sm">
-              <CardHeader className="p-4">
-                <CardTitle className="text-lg">3D Preview</CardTitle>
-                <CardDescription className="text-xs">
-                  {svgData ? "Interact with the 3D model" : "Loading model..."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 h-[calc(100%-80px)]">
-                {renderModelPreview()}
-              </CardContent>
-              {/* Extra border at the bottom to fix glitching issue */}
-              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-border"></div>
-            </Card>
+        <AnimatePresence mode="wait">
+          {isMobile && !continueOnMobile ? (
+            <motion.div
+              key="mobile-warning"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <EditorMobileWarning 
+                onContinue={handleContinueOnMobile} 
+                onReturn={handleBackToHome}
+              />
+            </motion.div>
+          ) : (
+            /* Mobile-first design with order-last for preview on small screens */
+            <motion.div 
+              key="editor-content"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              variants={staggerContainer(0.2)}
+              initial="hidden"
+              animate="show"
+            >
+              {/* 3D Preview - Order first on mobile so it appears at the top */}
+              <motion.div 
+                variants={modelContainerAnimation}
+                className="h-[400px] sm:h-[500px] lg:h-[600px] order-first lg:order-last relative"
+              >
+                <Card className="h-full relative overflow-hidden border-[1px] shadow-sm">
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg">3D Preview</CardTitle>
+                    <CardDescription className="text-xs">
+                      {svgData ? "Interact with the 3D model" : "Loading model..."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0 h-[calc(100%-80px)]">
+                    {renderModelPreview()}
+                  </CardContent>
+                  {/* Extra border at the bottom to fix glitching issue */}
+                  <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-border"></div>
+                </Card>
+              </motion.div>
 
-            {/* Controls - Shown below the preview on mobile */}
-            <div className="space-y-6 order-last lg:order-first">
-              <Card>
-                <CardHeader className="p-4">
-                  <CardTitle className="text-lg">Customize 3D Model</CardTitle>
-                  <CardDescription className="text-xs truncate">{fileName}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <Tabs defaultValue="geometry">
-                    <TabsList className="w-full flex justify-between mb-4 overflow-x-auto">
-                      <TabsTrigger value="geometry" className="flex-1">Geometry</TabsTrigger>
-                      <TabsTrigger value="material" className="flex-1">Material</TabsTrigger>
-                      <TabsTrigger value="environment" className="flex-1">Environment</TabsTrigger>
-                      <TabsTrigger value="background" className="flex-1">Background</TabsTrigger>
-                    </TabsList>
+              {/* Controls - Shown below the preview on mobile */}
+              <motion.div 
+                className="space-y-6 order-last lg:order-first"
+                variants={cardAnimation}
+              >
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg">Customize 3D Model</CardTitle>
+                    <CardDescription className="text-xs truncate">{fileName}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <Tabs defaultValue="geometry">
+                      <TabsList className="w-full flex justify-between mb-4 overflow-x-auto">
+                        <TabsTrigger value="geometry" className="flex-1">Geometry</TabsTrigger>
+                        <TabsTrigger value="material" className="flex-1">Material</TabsTrigger>
+                        <TabsTrigger value="environment" className="flex-1">Environment</TabsTrigger>
+                        <TabsTrigger value="background" className="flex-1">Background</TabsTrigger>
+                      </TabsList>
 
-                    <TabsContent value="geometry">
-                      <GeometryControls
-                        depth={depth}
-                        setDepth={setDepth}
-                        bevelEnabled={bevelEnabled}
-                        setBevelEnabled={setBevelEnabled}
-                        bevelThickness={bevelThickness}
-                        setBevelThickness={setBevelThickness}
-                        bevelSize={bevelSize}
-                        setBevelSize={setBevelSize}
-                        bevelSegments={bevelSegments}
-                        setBevelSegments={setBevelSegments}
-                        bevelPreset={bevelPreset}
-                        setBevelPreset={setBevelPreset}
-                        autoRotate={autoRotate}
-                        setAutoRotate={setAutoRotate}
-                        autoRotateSpeed={autoRotateSpeed}
-                        setAutoRotateSpeed={setAutoRotateSpeed}
-                      />
-                    </TabsContent>
+                      <AnimatePresence mode="wait">
+                        <TabsContent value="geometry" key="geometry">
+                          <motion.div
+                            key="geometry-content"
+                            variants={tabContentAnimation}
+                            initial="hidden"
+                            animate="show"
+                            exit="exit"
+                          >
+                            <GeometryControls
+                              depth={depth}
+                              setDepth={setDepth}
+                              bevelEnabled={bevelEnabled}
+                              setBevelEnabled={setBevelEnabled}
+                              bevelThickness={bevelThickness}
+                              setBevelThickness={setBevelThickness}
+                              bevelSize={bevelSize}
+                              setBevelSize={setBevelSize}
+                              bevelSegments={bevelSegments}
+                              setBevelSegments={setBevelSegments}
+                              bevelPreset={bevelPreset}
+                              setBevelPreset={setBevelPreset}
+                              autoRotate={autoRotate}
+                              setAutoRotate={setAutoRotate}
+                              autoRotateSpeed={autoRotateSpeed}
+                              setAutoRotateSpeed={setAutoRotateSpeed}
+                            />
+                          </motion.div>
+                        </TabsContent>
 
-                    <TabsContent value="material">
-                      <MaterialControls
-                        materialPreset={materialPreset}
-                        setMaterialPreset={setMaterialPreset}
-                        roughness={roughness}
-                        setRoughness={setRoughness}
-                        metalness={metalness}
-                        setMetalness={setMetalness}
-                        clearcoat={clearcoat}
-                        setClearcoat={setClearcoat}
-                        transmission={transmission}
-                        setTransmission={setTransmission}
-                        envMapIntensity={envMapIntensity}
-                        setEnvMapIntensity={setEnvMapIntensity}
-                        useCustomColor={useCustomColor}
-                        setUseCustomColor={setUseCustomColor}
-                        customColor={customColor}
-                        setCustomColor={setCustomColor}
-                      />
-                    </TabsContent>
+                        <TabsContent value="material" key="material">
+                          <motion.div
+                            key="material-content"
+                            variants={tabContentAnimation}
+                            initial="hidden"
+                            animate="show"
+                            exit="exit"
+                          >
+                            <MaterialControls
+                              materialPreset={materialPreset}
+                              setMaterialPreset={setMaterialPreset}
+                              roughness={roughness}
+                              setRoughness={setRoughness}
+                              metalness={metalness}
+                              setMetalness={setMetalness}
+                              clearcoat={clearcoat}
+                              setClearcoat={setClearcoat}
+                              transmission={transmission}
+                              setTransmission={setTransmission}
+                              envMapIntensity={envMapIntensity}
+                              setEnvMapIntensity={setEnvMapIntensity}
+                              useCustomColor={useCustomColor}
+                              setUseCustomColor={setUseCustomColor}
+                              customColor={customColor}
+                              setCustomColor={setCustomColor}
+                            />
+                          </motion.div>
+                        </TabsContent>
 
-                    <TabsContent value="environment">
-                      <EnvironmentControls
-                        useEnvironment={useEnvironment}
-                        setUseEnvironment={setUseEnvironment}
-                        environmentPreset={environmentPreset}
-                        setEnvironmentPreset={setEnvironmentPreset}
-                        customHdriUrl={customHdriUrl}
-                        setCustomHdriUrl={setCustomHdriUrl}
-                        useBloom={useBloom}
-                        setUseBloom={setUseBloom}
-                        bloomIntensity={bloomIntensity}
-                        setBloomIntensity={setBloomIntensity}
-                        bloomMipmapBlur={bloomMipmapBlur}
-                        setBloomMipmapBlur={setBloomMipmapBlur}
-                        modelRotationY={modelRotationY}
-                        setModelRotationY={setModelRotationY}
-                        toggleVibeMode={toggleVibeMode}
-                      />
-                    </TabsContent>
+                        <TabsContent value="environment" key="environment">
+                          <motion.div
+                            key="environment-content" 
+                            variants={tabContentAnimation}
+                            initial="hidden"
+                            animate="show"
+                            exit="exit"
+                          >
+                            <EnvironmentControls
+                              useEnvironment={useEnvironment}
+                              setUseEnvironment={setUseEnvironment}
+                              environmentPreset={environmentPreset}
+                              setEnvironmentPreset={setEnvironmentPreset}
+                              customHdriUrl={customHdriUrl}
+                              setCustomHdriUrl={setCustomHdriUrl}
+                              useBloom={useBloom}
+                              setUseBloom={setUseBloom}
+                              bloomIntensity={bloomIntensity}
+                              setBloomIntensity={setBloomIntensity}
+                              bloomMipmapBlur={bloomMipmapBlur}
+                              setBloomMipmapBlur={setBloomMipmapBlur}
+                              modelRotationY={modelRotationY}
+                              setModelRotationY={setModelRotationY}
+                              toggleVibeMode={toggleVibeMode}
+                            />
+                          </motion.div>
+                        </TabsContent>
 
-                    <TabsContent value="background">
-                      <BackgroundControls
-                        backgroundColor={backgroundColor}
-                        setBackgroundColor={setBackgroundColor}
-                        userSelectedBackground={userSelectedBackground}
-                        setUserSelectedBackground={setUserSelectedBackground}
-                        solidColorPreset={solidColorPreset}
-                        setSolidColorPreset={setSolidColorPreset}
-                        theme={theme}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
+                        <TabsContent value="background" key="background">
+                          <motion.div
+                            key="background-content"
+                            variants={tabContentAnimation}
+                            initial="hidden"
+                            animate="show"
+                            exit="exit"
+                          >
+                            <BackgroundControls
+                              backgroundColor={backgroundColor}
+                              setBackgroundColor={setBackgroundColor}
+                              userSelectedBackground={userSelectedBackground}
+                              setUserSelectedBackground={setUserSelectedBackground}
+                              solidColorPreset={solidColorPreset}
+                              setSolidColorPreset={setSolidColorPreset}
+                              theme={theme}
+                            />
+                          </motion.div>
+                        </TabsContent>
+                      </AnimatePresence>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </main>
+    </motion.main>
   )
 } 

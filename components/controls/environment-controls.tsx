@@ -9,6 +9,7 @@ import { InfoIcon } from "lucide-react"
 import { EnvironmentControlsProps } from "@/lib/types"
 import { ENVIRONMENT_PRESETS } from "@/lib/constants"
 import { toast } from "sonner"
+import { RainbowButton } from "../ui/rainbow-button"
 
 export function EnvironmentControls({
   useEnvironment,
