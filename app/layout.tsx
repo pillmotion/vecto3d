@@ -5,6 +5,11 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster as SonnerToaster } from "sonner";
 import Script from "next/script";
 import { cn } from "@/lib/utils";
+import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/react"
+
+
+
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   variable: "--font-instrument-sans",
@@ -15,8 +20,8 @@ const instrumentSerif = Instrument_Serif({
   variable: "--font-instrument-serif",
 });
 
-export const metadata = {
-  title: "Vecto3d | Convert SVGs to 3D Models",
+export const metadata: Metadata = {
+  title: "Vecto3d | Transform Your Vectors in a New Dimension",
   description: "A super simple tool to convert SVG logos to 3D models",
   icons: {
     icon: [
@@ -33,6 +38,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <meta property="og:image" content="/opengraph-image.png" />
+      <meta property="og:image:type" content="image/png" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="675" />
+      <meta
+        property="og:site_name"
+        content="Vecto3d | Transform Your Vectors in a New Dimension"
+      />
+      <meta
+        property="og:url"
+        content="https://vecto3d.xyz/"
+      />
+      <meta name="twitter:image" content="/twitter-image.png" />
+      <meta name="twitter:image:type" content="image/png" />
+      <meta name="twitter:image:width" content="1200" />
+      <meta name="twitter:image:height" content="675" />
       <Script
         src="https://cloud.umami.is/script.js"
         defer
@@ -45,6 +66,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange>
           {children}
+          <Analytics />
           <SonnerToaster
             position="top-center"
             richColors
