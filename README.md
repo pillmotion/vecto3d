@@ -1,4 +1,5 @@
-- [ ] Add Umami for analytics
+- [x] Add Umami for analytics
+- [x] Add Drag and Drop
+- [x] Vibe mode update
 - [ ] Open Graph Images
-- [ ] Add Drag and Drop
-- [ ] Add Preview Pictures in Landing Page 
+- [ ] Write Readme

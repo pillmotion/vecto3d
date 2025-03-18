@@ -1,144 +1,139 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Logo } from "@/components/ui/logo"
-import { FileUpload } from "@/components/file-upload"
-import { MobileWarning } from "@/components/mobile-warning"
-import { useMobileDetection } from "@/hooks/use-mobile-detection"
-import { RainbowButton } from "@/components/ui/rainbow-button"
-import { motion, AnimatePresence } from "framer-motion"
-import { 
-  staggerContainer, 
-  fadeUp, 
-  logoAnimation, 
-  listItem, 
-  scaleUp, 
-  buttonAnimation
-} from "@/lib/animation-values"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
+import { FileUpload } from "@/components/file-upload";
+import { MobileWarning } from "@/components/mobile-warning";
+import { useMobileDetection } from "@/hooks/use-mobile-detection";
+import { RainbowButton } from "@/components/ui/rainbow-button";
+import { ModeToggle } from "@/components/ui/theme-toggle";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaGithub } from "react-icons/fa";
+import { IoLogoVercel } from "react-icons/io5";
+import { ArrowRight } from "lucide-react";
+import {
+  staggerContainer,
+  fadeUp,
+  logoAnimation,
+} from "@/lib/animation-values";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
-  const [svgData, setSvgData] = useState<string | null>(null)
-  const [fileName, setFileName] = useState<string>("")
-  const router = useRouter()
-  const { isMobile, continueOnMobile, handleContinueOnMobile } = useMobileDetection()
+  const [svgData, setSvgData] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string>("");
+  const router = useRouter();
+  const { isMobile, continueOnMobile, handleContinueOnMobile } =
+    useMobileDetection();
 
   const handleFileUpload = (data: string, name: string) => {
-    setSvgData(data)
-    setFileName(name)
-  }
+    setSvgData(data);
+    setFileName(name);
+  };
 
   const handleContinue = () => {
     if (svgData) {
       // Store SVG data in localStorage to access it on the edit page
-      localStorage.setItem('svgData', svgData)
-      localStorage.setItem('fileName', fileName)
-      
+      localStorage.setItem("svgData", svgData);
+      localStorage.setItem("fileName", fileName);
+
       // Store the mobile device preference
       if (isMobile) {
-        localStorage.setItem('continueOnMobile', 'true')
+        localStorage.setItem("continueOnMobile", "true");
       }
-      
-      router.push('/edit')
+
+      router.push("/edit");
     }
-  }
+  };
 
   return (
-    <motion.main 
-      className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-background via-background to-muted/50"
+    <motion.main
+      className="min-h-screen flex flex-col relative w-full"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <motion.div 
-        className="w-full max-w-5xl px-4 sm:px-6 flex flex-col items-center"
-        variants={staggerContainer()}
+      exit={{ opacity: 0 }}>
+      {/* Header */}
+      <motion.header
+        className="w-full py-6 px-6 md:px-12 flex justify-between items-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}>
+        <motion.div
+          className="flex items-center space-x-2"
+          variants={logoAnimation}
+          initial="hidden"
+          animate="show">
+          <Logo className="h-8 w-8 text-primary" />
+          <span className="text-xl font-semibold">Vecto3d</span>
+        </motion.div>
+
+        <div className="flex items-center space-x-3">
+          <ModeToggle />
+          <Link
+            href="https://github.com/lakshaybhushan/vecto3d"
+            target="_blank"
+            rel="noopener noreferrer">
+            <Button>
+              <FaGithub size={16} />
+              <span className="hidden sm:inline">Star it on GitHub</span>
+            </Button>
+          </Link>
+        </div>
+      </motion.header>
+
+      <motion.div
+        className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 py-8"
+        variants={staggerContainer(0.08)}
         initial="hidden"
-        animate="show"
-      >
-        <motion.div className="text-center mb-8" variants={fadeUp}>
-          <motion.div 
-            className="flex items-center justify-center mb-4"
-            variants={fadeUp}
-          >
-            <motion.div variants={logoAnimation}>
-              <Logo className="h-16 w-16 text-primary mr-2" />
-            </motion.div>
-            <motion.h1 
-              className="text-6xl font-bold tracking-tighter"
-              variants={fadeUp}
-            >
-              Vecto3D
-            </motion.h1>
-          </motion.div>
-          <motion.p 
-            className="text-xl text-muted-foreground max-w-md mx-auto"
-            variants={fadeUp}
-          >
-            Transform your SVG designs into stunning 3D models with a single click
-          </motion.p>
+        animate="show">
+        {/* Main Headline */}
+        <motion.div className="text-center mb-10 md:mb-16" variants={fadeUp}>
+          <motion.h1
+            className="font-serif text-4xl md:text-5xl lg:text-8xl tracking-tight leading-tight md:leading-tight"
+            variants={fadeUp}>
+            Transform Your Vectors <br className="hidden sm:block" />
+            <span className="text-primary">in a New Dimension</span>
+          </motion.h1>
         </motion.div>
 
         <AnimatePresence mode="wait">
           {isMobile && !continueOnMobile ? (
             <motion.div
               key="mobile-warning"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <MobileWarning onContinue={handleContinueOnMobile} onReturn={() => {}} />
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}>
+              <MobileWarning
+                onContinue={handleContinueOnMobile}
+                onReturn={() => {}}
+              />
             </motion.div>
           ) : (
-            <motion.div 
+            <motion.div
               key="desktop-content"
-              className="grid grid-cols-1 md:grid-cols-2 gap-12 w-full max-w-4xl items-center"
-              variants={staggerContainer(0.15)}
-              initial="hidden"
-              animate="show"
-            >
-              <motion.div className="flex flex-col space-y-4" variants={fadeUp}>
-                <motion.h2 
-                  className="text-2xl font-semibold tracking-tight"
-                  variants={fadeUp}
-                >
-                  How it works
-                </motion.h2>
-                <motion.div 
-                  className="flex items-start space-x-3"
-                  variants={listItem}
-                >
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0">1</div>
-                  <p>Upload your SVG file</p>
-                </motion.div>
-                <motion.div 
-                  className="flex items-start space-x-3"
-                  variants={listItem}
-                >
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0">2</div>
-                  <p>Customize parameters and settings</p>
-                </motion.div>
-                <motion.div 
-                  className="flex items-start space-x-3"
-                  variants={listItem}
-                >
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0">3</div>
-                  <p>Export your 3D model</p>
-                </motion.div>
+              className="w-full max-w-4xl mx-auto"
+              variants={fadeUp}>
+              <motion.div
+                className="w-full"
+                variants={fadeUp}
+                transition={{ delay: 0.05 }}>
+                <FileUpload
+                  onFileUpload={handleFileUpload}
+                  fileName={fileName}
+                />
+                <motion.p
+                  className="text-base text-center text-muted-foreground mt-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}>
+                  *Works best with SVGs having simple geometries and with no
+                  fill.
+                </motion.p>
               </motion.div>
 
-              <motion.div 
-                className="flex flex-col"
-                variants={scaleUp}
-              >
-                <FileUpload 
-                  onFileUpload={handleFileUpload} 
-                  fileName={fileName} 
-                />
-                
+              <div className="h-24 mt-2 flex items-center justify-center">
                 <AnimatePresence>
                   {svgData && (
                     <motion.div
@@ -147,32 +142,71 @@ export default function Home() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 20 }}
                       transition={{ type: "spring", damping: 15 }}
-                    >
-                      <RainbowButton 
-                        className="w-full mt-4 text-md py-6"
-                        onClick={handleContinue}
-                      >
-                        Continue to Editor
+                      className="w-full flex justify-center">
+                      <RainbowButton
+                        className="max-w-xl w-full md:w-1/2 mx-auto text-md py-6"
+                        onClick={handleContinue}>
+                        <span className="flex items-center gap-2">
+                          Continue to Editor <ArrowRight size={16} />
+                        </span>
                       </RainbowButton>
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        <motion.div 
-          className="mt-16 text-center text-sm text-muted-foreground"
-          variants={fadeUp}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          Vibe coded with <Link href="https://v0.dev" className="text-primary font-mono" target="_blank" rel="noopener noreferrer">v0.dev</Link> + Copilot by <Link href="https://lakshb.dev" className="underline" target="_blank" rel="noopener noreferrer">Lakshay Bhushan</Link>
-        </motion.div>
       </motion.div>
-    </motion.main>
-  )
-}
 
+      {/* Footer */}
+      <motion.footer
+        className="w-full py-6 px-6 md:px-12"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.3 }}>
+        <div className="flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            Hosted on{" "}
+            <Link
+              href="https://vercel.com"
+              className="font-medium text-primary hover:underline flex items-center gap-0.5 transition-colors duration-200"
+              target="_blank"
+              rel="noopener noreferrer">
+              <IoLogoVercel size={14} />
+              <span className="hidden sm:inline">Vercel</span>
+            </Link>
+          </div>
+          <div className="flex items-center gap-2">
+            Ideated with{" "}
+            <Link
+              href="https://v0.dev/chat/three-js-logo-converter-JEQ692TQD4t"
+              className="font-medium text-primary hover:underline flex items-center gap-0.5 transition-colors duration-200"
+              target="_blank"
+              rel="noopener noreferrer">
+              <span className="hidden sm:inline">
+                <svg
+                  fill="currentColor"
+                  viewBox="0 0 40 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                  className="size-6">
+                  <path d="M23.3919 0H32.9188C36.7819 0 39.9136 3.13165 39.9136 6.99475V16.0805H36.0006V6.99475C36.0006 6.90167 35.9969 6.80925 35.9898 6.71766L26.4628 16.079C26.4949 16.08 26.5272 16.0805 26.5595 16.0805H36.0006V19.7762H26.5595C22.6964 19.7762 19.4788 16.6139 19.4788 12.7508V3.68923H23.3919V12.7508C23.3919 12.9253 23.4054 13.0977 23.4316 13.2668L33.1682 3.6995C33.0861 3.6927 33.003 3.68923 32.9188 3.68923H23.3919V0Z"></path>
+                  <path d="M13.7688 19.0956L0 3.68759H5.53933L13.6231 12.7337V3.68759H17.7535V17.5746C17.7535 19.6705 15.1654 20.6584 13.7688 19.0956Z"></path>
+                </svg>
+              </span>
+            </Link>
+            By{" "}
+            <Link
+              href="https://lakshb.dev"
+              className="hover:underline font-medium hover:text-primary transition-colors duration-200"
+              target="_blank"
+              rel="noopener noreferrer">
+              lakshaybhushan
+            </Link>
+          </div>
+        </div>
+      </motion.footer>
+    </motion.main>
+  );
+}

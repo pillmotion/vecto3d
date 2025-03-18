@@ -1,29 +1,32 @@
-import { Button } from "@/components/ui/button"
-import { 
+import { Button } from "@/components/ui/button";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
-import { Box, Camera, ChevronDown } from "lucide-react"
-import { toast } from "sonner"
-import * as THREE from "three"
-import { exportToSTL, exportToGLTF } from "@/lib/exporters"
-import { PNG_RESOLUTIONS } from "@/lib/constants"
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Box, Camera, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
+import * as THREE from "three";
+import { exportToSTL, exportToGLTF } from "@/lib/exporters";
+import { PNG_RESOLUTIONS } from "@/lib/constants";
 
 interface ExportButtonsProps {
-  fileName: string
-  modelGroupRef: React.RefObject<THREE.Group | null>
+  fileName: string;
+  modelGroupRef: React.RefObject<THREE.Group | null>;
 }
 
 export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
-  const handleExport = async (format: "stl" | "gltf" | "glb" | "png", resolution?: number) => {
-    // Log what we have to debug 
-    console.log("Export attempt:", { 
-      hasGroupRef: !!modelGroupRef.current, 
-      fileName 
+  const handleExport = async (
+    format: "stl" | "gltf" | "glb" | "png",
+    resolution?: number,
+  ) => {
+    // Log what we have to debug
+    console.log("Export attempt:", {
+      hasGroupRef: !!modelGroupRef.current,
+      fileName,
     });
-    
+
     // Check group ref first, as that's the parent containing the actual model
     if (!modelGroupRef.current || !fileName) {
       console.error("Export failed: Model group or filename missing");
@@ -33,7 +36,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
 
     console.log("Starting export process for", format);
     const baseName = fileName.replace(".svg", "");
-    
+
     try {
       if (format === "png") {
         // Special handling for PNG screenshot
@@ -42,97 +45,114 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
           toast.error("Could not find the 3D renderer");
           return false;
         }
-        
+
         // Use the provided resolution or default to 1x
         const pngResolution = resolution || 1;
-        
+
         try {
           // Create a temporary canvas with the desired resolution
-          const exportCanvas = document.createElement('canvas');
-          const ctx = exportCanvas.getContext('2d');
-          
+          const exportCanvas = document.createElement("canvas");
+          const ctx = exportCanvas.getContext("2d");
+
           if (!ctx) {
             throw new Error("Could not get 2D context for export canvas");
           }
-          
+
           // Set the export canvas size based on the resolution
           exportCanvas.width = canvas.width * pngResolution;
           exportCanvas.height = canvas.height * pngResolution;
-          
+
           // Get the WebGL renderer from Three.js
-          const renderer = (document.querySelector('canvas') as any)?.__r3f?.fiber?.renderer;
-          
+          const renderer = (document.querySelector("canvas") as any)?.__r3f
+            ?.fiber?.renderer;
+
           if (renderer) {
             // Save current pixel ratio
             const currentPixelRatio = renderer.getPixelRatio();
-            
+
             // Set higher pixel ratio for the screenshot
             renderer.setPixelRatio(currentPixelRatio * pngResolution);
-            
+
             // Force a render at the higher resolution
             renderer.render(renderer.scene, renderer.camera);
-            
+
             // Capture the high-resolution render
-            ctx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
-            
+            ctx.drawImage(
+              canvas,
+              0,
+              0,
+              exportCanvas.width,
+              exportCanvas.height,
+            );
+
             // Reset pixel ratio to original
             renderer.setPixelRatio(currentPixelRatio);
-            
+
             // Render once more at original resolution
             renderer.render(renderer.scene, renderer.camera);
-            
+
             // Free up GPU resources by explicitly calling dispose where possible
             renderer.renderLists.dispose();
           } else {
             // Fallback if we can't access the renderer
-            ctx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+            ctx.drawImage(
+              canvas,
+              0,
+              0,
+              exportCanvas.width,
+              exportCanvas.height,
+            );
           }
-          
+
           // Get the image data as PNG
-          const dataURL = exportCanvas.toDataURL('image/png', 0.95);
-          
+          const dataURL = exportCanvas.toDataURL("image/png", 0.95);
+
           // Create and trigger download
-          const link = document.createElement('a');
+          const link = document.createElement("a");
           link.download = `${baseName}.png`;
           link.href = dataURL;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          
+
           toast.success(`Image saved as ${baseName}.png`, { duration: 3000 });
-          
+
           // Clean up
           exportCanvas.remove();
-          
+
           // Explicitly release the dataURL to help garbage collection
           URL.revokeObjectURL(dataURL);
         } catch (error) {
           console.error("Error exporting PNG:", error);
           toast.error("Failed to generate image");
         }
-        
+
         return true;
       }
-      
+
       // To avoid visible glitching, we'll create an invisible clone of the model
       // and use that for export instead of modifying the visible model
 
       // Clone the model group
       const modelGroupClone = modelGroupRef.current.clone();
-      
+
       // Reset the clone's rotation to zero (not visible to user)
       modelGroupClone.rotation.y = 0;
       modelGroupClone.updateMatrixWorld(true);
-      
+
       // Export using the invisible clone
       let success = false;
 
       if (format === "stl") {
         success = await exportToSTL(modelGroupClone, `${baseName}.stl`);
       } else if (format === "glb" || format === "gltf") {
-        success = await exportToGLTF(modelGroupClone, `${baseName}.${format}`, format);
+        success = await exportToGLTF(
+          modelGroupClone,
+          `${baseName}.${format}`,
+          format,
+        );
       }
-      
+
       // Dispose of the clone to free memory
       modelGroupClone.traverse((object) => {
         // Type check and cast to access geometry and material properties
@@ -142,33 +162,43 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         }
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((material: THREE.Material) => material.dispose());
+            mesh.material.forEach((material: THREE.Material) =>
+              material.dispose(),
+            );
           } else {
             mesh.material.dispose();
           }
         }
       });
-      
+
       // Only show success message
       if (success) {
-        toast.success(`${baseName}.${format} has been downloaded successfully`, {
-          duration: 3000,
-        });
+        toast.success(
+          `${baseName}.${format} has been downloaded successfully`,
+          {
+            duration: 3000,
+          },
+        );
       } else {
         toast.error(`Failed to export ${format.toUpperCase()}`);
       }
     } catch (error) {
       console.error("Export error:", error);
-      toast.error(`Export failed: ${(error as Error).message || "Unknown error"}`);
+      toast.error(
+        `Export failed: ${(error as Error).message || "Unknown error"}`,
+      );
     }
-  }
+  };
 
   return (
     <div className="flex items-center gap-2">
       {/* Export Image Button */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex items-center gap-1">
             <Camera className="h-4 w-4" />
             <span className="hidden sm:inline">Export Image</span>
             <ChevronDown className="h-4 w-4 ml-1" />
@@ -176,16 +206,15 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           {PNG_RESOLUTIONS.map((resolution) => (
-            <DropdownMenuItem 
+            <DropdownMenuItem
               key={resolution.multiplier}
-              onSelect={() => handleExport("png", resolution.multiplier)}
-            >
+              onSelect={() => handleExport("png", resolution.multiplier)}>
               {resolution.label}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      
+
       {/* Export 3D Model Button */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -208,5 +237,5 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  )
-} 
+  );
+}

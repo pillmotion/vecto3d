@@ -1,9 +1,15 @@
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MaterialControlsProps } from "@/lib/types"
-import { MATERIAL_PRESETS } from "@/lib/constants"
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { MaterialControlsProps } from "@/lib/types";
+import { MATERIAL_PRESETS } from "@/lib/constants";
 
 export function MaterialControls({
   materialPreset,
@@ -21,18 +27,18 @@ export function MaterialControls({
   useCustomColor,
   setUseCustomColor,
   customColor,
-  setCustomColor
+  setCustomColor,
 }: MaterialControlsProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="materialPreset">Material Type</Label>
-        <Select 
-          value={materialPreset} 
+        <Select
+          value={materialPreset}
           onValueChange={(value) => {
             setMaterialPreset(value);
             // Apply preset values when selected
-            const preset = MATERIAL_PRESETS.find(p => p.name === value);
+            const preset = MATERIAL_PRESETS.find((p) => p.name === value);
             if (preset) {
               setRoughness(preset.roughness);
               setMetalness(preset.metalness);
@@ -40,8 +46,7 @@ export function MaterialControls({
               setTransmission(preset.transmission);
               setEnvMapIntensity(preset.envMapIntensity);
             }
-          }}
-        >
+          }}>
           <SelectTrigger>
             <SelectValue placeholder="Select material type" />
           </SelectTrigger>
@@ -54,13 +59,15 @@ export function MaterialControls({
           </SelectContent>
         </Select>
       </div>
-      
+
       <div className="grid grid-cols-5 gap-2 mb-3">
         {MATERIAL_PRESETS.map((preset) => (
-          <div 
-            key={preset.name} 
+          <div
+            key={preset.name}
             className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-              materialPreset === preset.name ? 'bg-primary/20 ring-1 ring-primary' : 'hover:bg-muted'
+              materialPreset === preset.name
+                ? "bg-primary/20 ring-1 ring-primary"
+                : "hover:bg-muted"
             }`}
             onClick={() => {
               setMaterialPreset(preset.name);
@@ -69,16 +76,18 @@ export function MaterialControls({
               setClearcoat(preset.clearcoat);
               setTransmission(preset.transmission);
               setEnvMapIntensity(preset.envMapIntensity);
-            }}
-          >
-            <div 
+            }}>
+            <div
               className="w-12 h-12 rounded-full mb-1"
-              style={{ 
+              style={{
                 background: `linear-gradient(135deg, 
                   hsl(210, ${100 - preset.roughness * 100}%, ${50 + preset.metalness * 30}%), 
                   hsl(240, ${100 - preset.roughness * 80}%, ${20 + preset.metalness * 50}%))`,
-                boxShadow: preset.clearcoat > 0 ? '0 0 10px rgba(255,255,255,0.5) inset' : 'none',
-                opacity: preset.transmission > 0 ? 0.7 : 1
+                boxShadow:
+                  preset.clearcoat > 0
+                    ? "0 0 10px rgba(255,255,255,0.5) inset"
+                    : "none",
+                opacity: preset.transmission > 0 ? 0.7 : 1,
               }}
             />
             <span className="text-xs font-medium">{preset.label}</span>
@@ -155,7 +164,9 @@ export function MaterialControls({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="transmission">Transmission: {transmission.toFixed(2)}</Label>
+            <Label htmlFor="transmission">
+              Transmission: {transmission.toFixed(2)}
+            </Label>
             <Slider
               id="transmission"
               min={0}
@@ -167,7 +178,9 @@ export function MaterialControls({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="envMapIntensity">Environment Reflection: {envMapIntensity.toFixed(1)}</Label>
+            <Label htmlFor="envMapIntensity">
+              Environment Reflection: {envMapIntensity.toFixed(1)}
+            </Label>
             <Slider
               id="envMapIntensity"
               min={0}
@@ -180,5 +193,5 @@ export function MaterialControls({
         </>
       )}
     </div>
-  )
+  );
 }
