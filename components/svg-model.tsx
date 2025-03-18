@@ -29,6 +29,9 @@ interface SVGModelProps {
   castShadow?: boolean;
   isHollowSvg?: boolean;
   spread?: number;
+  onLoadStart?: () => void;
+  onLoadComplete?: () => void;
+  onError?: (error: Error) => void;
 }
 
 // Create a helper function outside the component to compute the area of a path's bounding box
@@ -171,6 +174,9 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       castShadow = true,
       isHollowSvg = false,
       spread = 0,
+      onLoadStart,
+      onLoadComplete,
+      onError
     },
     ref,
   ) => {
@@ -190,6 +196,9 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       // Skip parsing if SVG data hasn't changed
       const svgHash = btoa(svgData).slice(0, 20); // Simple hash for comparison
 
+      // Call loading start
+      onLoadStart?.();
+
       // Parse the SVG data
       try {
         // Create a temporary DOM element to hold the SVG
@@ -197,7 +206,9 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
         const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
         const svgElement = svgDoc.querySelector("svg");
 
-        if (!svgElement) return;
+        if (!svgElement) {
+          throw new Error("Invalid SVG: No SVG element found");
+        }
 
         // Get SVG dimensions
         const viewBox = svgElement.getAttribute("viewBox");
@@ -221,7 +232,7 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
         // Load SVG paths
         const loader = new SVGLoader();
         const svgData2 = loader.parse(svgData);
-
+        
         // Sort paths by area (largest first) to help with proper hole detection
         const sortedPaths = [...svgData2.paths].sort((a, b) => {
           // Estimate path area by bounding box
@@ -229,21 +240,23 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
           const areaB = getPathBoundingArea(b);
           return areaB - areaA; // Largest first
         });
-
+        
         setPaths(sortedPaths);
+
+        // Successful load
+        setTimeout(() => {
+          onLoadComplete?.();
+        }, 300); // Small delay to allow rendering
       } catch (error) {
         console.error("Error parsing SVG:", error);
+        onError?.(error instanceof Error ? error : new Error("Failed to parse SVG"));
       }
 
-      // Clean up function
       return () => {
-        // Clear cached materials when SVG changes
-        materialsCache.current.forEach((material) => {
-          if (material) material.dispose();
-        });
+        // Cleanup textures and materials on re-render
         materialsCache.current.clear();
       };
-    }, [svgData]);
+    }, [svgData, onLoadStart, onLoadComplete, onError]);
 
     // Process SVG paths into 3D shapes with proper hole handling
     const shapesWithMaterials = useMemo(() => {
@@ -442,6 +455,18 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       }
 
       return materialsCache.current.get(key)!;
+    };
+
+    const handleSvgGroupCreated = (group: THREE.Group) => {
+      try {
+        // ... existing code ...
+        
+        // Notify of successful load
+        onLoadComplete?.();
+      } catch (error) {
+        console.error("Error processing SVG:", error);
+        onError?.(error instanceof Error ? error : new Error('Error processing SVG'));
+      }
     };
 
     // Cleanup meshes and geometries when component unmounts

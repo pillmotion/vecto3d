@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SVGModel } from "@/components/svg-model";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as THREE from "three";
 import { useRouter } from "next/navigation";
@@ -136,6 +136,9 @@ interface ModelPreviewProps {
   bloomIntensity: number;
   bloomMipmapBlur: boolean;
   isMobile: boolean;
+  onLoadStart: () => void;
+  onLoadComplete: () => void;
+  onError: (error: Error) => void;
 }
 
 // Split out model preview to a separate component to prevent unnecessary rerenders
@@ -173,6 +176,9 @@ const ModelPreview = React.memo<ModelPreviewProps>(
     bloomIntensity,
     bloomMipmapBlur,
     isMobile,
+    onLoadStart,
+    onLoadComplete,
+    onError,
   }) => {
     // Use ref to avoid recreating camera on each render
     const cameraRef = useRef(
@@ -333,10 +339,42 @@ const ModelPreview = React.memo<ModelPreviewProps>(
 // Ensure proper display name for React DevTools
 ModelPreview.displayName = "ModelPreview";
 
+// Loading state component
+const ModelLoadingState = ({ message }: { message: string }) => (
+  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-muted/10 to-muted/20">
+    <div className="flex flex-col items-center gap-4 text-center max-w-xs px-4">
+      <div className="relative h-20 w-20">
+        <div className="absolute inset-0 rounded-full bg-background/20 animate-pulse"></div>
+        <div className="absolute inset-4 rounded-full bg-background/40 animate-pulse [animation-delay:200ms]"></div>
+        <Loader2 className="absolute inset-0 h-full w-full animate-spin text-primary opacity-80" />
+      </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{message}</p>
+        <p className="text-xs text-muted-foreground">This may take a moment for complex SVGs</p>
+      </div>
+    </div>
+  </div>
+);
+
+// Error state component
+const ModelErrorState = ({ error }: { error: string }) => (
+  <div className="w-full h-full flex items-center justify-center bg-destructive/5">
+    <div className="max-w-sm p-6 text-center">
+      <p className="text-destructive font-medium mb-2">Error processing SVG</p>
+      <p className="text-xs text-muted-foreground">{error}</p>
+      <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.reload()}>
+        Try Again
+      </Button>
+    </div>
+  </div>
+);
+
 export default function EditPage() {
   // React.useState imports before all the other hooks
   const [svgData, setSvgData] = useState<string | null>(null);
   const [depth, setDepth] = useState<number>(5);
+  const [isModelLoading, setIsModelLoading] = useState<boolean>(true);
+  const [svgProcessingError, setSvgProcessingError] = useState<string | null>(null);
 
   // Bevel options
   const [bevelEnabled, setBevelEnabled] = useState<boolean>(true);
@@ -437,6 +475,19 @@ export default function EditPage() {
   // Debounce expensive operations
   const debouncedSvgData = useDebounce(svgData, 300);
 
+  // Update loading state when SVG data changes
+  useEffect(() => {
+    if (debouncedSvgData) {
+      setIsModelLoading(true);
+      // Simulate processing time for complex SVGs
+      const timer = setTimeout(() => {
+        setIsModelLoading(false);
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [debouncedSvgData]);
+
   // Helper to detect if the SVG is potentially hollow based on path analysis
   useEffect(() => {
     if (!debouncedSvgData) return;
@@ -466,18 +517,24 @@ export default function EditPage() {
 
   // Retrieve SVG data from localStorage on component mount
   useEffect(() => {
+    setIsModelLoading(true);
     const savedSvgData = localStorage.getItem("svgData");
     const savedFileName = localStorage.getItem("fileName");
 
     if (savedSvgData) {
       setSvgData(savedSvgData);
+      // Loading state will be handled by the debouncedSvgData effect
+    } else {
+      setIsModelLoading(false);
+      
+      if (!savedSvgData) {
+        // If no svg data, redirect to home page
+        router.push("/");
+      }
     }
 
     if (savedFileName) {
       setFileName(savedFileName);
-    } else if (!savedSvgData) {
-      // If no svg data, redirect to home page
-      router.push("/");
     }
   }, [router]);
 
@@ -565,11 +622,15 @@ export default function EditPage() {
   // Optimize model preview using memoization
   const renderModelPreview = () => {
     if (!svgData) {
-      return (
-        <div className="w-full h-full flex items-center justify-center bg-muted/30">
-          <p className="text-muted-foreground">Loading model...</p>
-        </div>
-      );
+      return <ModelLoadingState message="Waiting for SVG data..." />;
+    }
+
+    if (isModelLoading) {
+      return <ModelLoadingState message="Generating 3D model..." />;
+    }
+
+    if (svgProcessingError) {
+      return <ModelErrorState error={svgProcessingError} />;
     }
 
     return (
@@ -607,6 +668,12 @@ export default function EditPage() {
           bloomIntensity={bloomIntensity}
           bloomMipmapBlur={bloomMipmapBlur}
           isMobile={isMobile}
+          onLoadStart={() => setIsModelLoading(true)}
+          onLoadComplete={() => setIsModelLoading(false)}
+          onError={(error) => {
+            setSvgProcessingError(error.message || "Failed to process SVG");
+            setIsModelLoading(false);
+          }}
         />
       </div>
     );
@@ -681,9 +748,11 @@ export default function EditPage() {
                   <CardHeader className="p-4 pb-4 border-b bg-background/80 backdrop-blur-sm z-10">
                     <CardTitle className="text-lg">Preview</CardTitle>
                     <CardDescription className="text-xs">
-                      {svgData
-                        ? "Interact with your 3D model"
-                        : "Loading model..."}
+                      {!svgData 
+                        ? "Loading SVG data..." 
+                        : isModelLoading 
+                          ? "Processing SVG..." 
+                          : "Interact with your 3D model"}
                     </CardDescription>
                   </CardHeader>
 

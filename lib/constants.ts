@@ -83,8 +83,9 @@ export const MATERIAL_PRESETS: MaterialPreset[] = [
 
 // PNG export resolutions
 export const PNG_RESOLUTIONS: ResolutionPreset[] = [
-  { label: "HD (1x)", multiplier: 1 },
-  { label: "2K (2x)", multiplier: 2 },
+  { label: "Low Quality", multiplier: 1 },
+  { label: "Medium Quality", multiplier: 2 },
+  { label: "High Quality", multiplier: 3 },
 ];
 
 // Bevel presets

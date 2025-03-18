@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import * as THREE from "three";
 import { exportToSTL, exportToGLTF } from "@/lib/exporters";
 import { PNG_RESOLUTIONS } from "@/lib/constants";
-
+import { File, Image } from "lucide-react";
 interface ExportButtonsProps {
   fileName: string;
   modelGroupRef: React.RefObject<THREE.Group | null>;
@@ -199,7 +199,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
             size="sm"
             variant="outline"
             className="flex items-center gap-1">
-            <Camera className="h-4 w-4" />
+            <Camera className="h-4 w-4 mr-0.5" />
             <span className="hidden sm:inline">Export Image</span>
             <ChevronDown className="h-4 w-4 ml-1" />
           </Button>
@@ -209,6 +209,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
             <DropdownMenuItem
               key={resolution.multiplier}
               onSelect={() => handleExport("png", resolution.multiplier)}>
+              <Image className="h-4 w-4 ml-1" />
               {resolution.label}
             </DropdownMenuItem>
           ))}
@@ -224,15 +225,18 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
             <ChevronDown className="h-4 w-4 ml-1" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onSelect={() => handleExport("stl")}>
-            Export as STL (3D Printing)
+            <File className="h-4 w-4 mr-0.5" />
+            Export as STL
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => handleExport("glb")}>
-            Export as GLB (3D Web/AR)
+            <File className="h-4 w-4 mr-0.5" />
+            Export as GLB
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => handleExport("gltf")}>
-            Export as GLTF (3D Editing)
+            <File className="h-4 w-4 mr-0.5" />
+            Export as GLTF
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
