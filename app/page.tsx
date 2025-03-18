@@ -177,7 +177,7 @@ export default function Home() {
               <span className="hidden sm:inline">Vercel</span>
             </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             Ideated with{" "}
             <Link
               href="https://v0.dev/chat/three-js-logo-converter-JEQ692TQD4t"
@@ -196,14 +196,15 @@ export default function Home() {
                 </svg>
               </span>
             </Link>
-            By{" "}
-            <Link
-              href="https://lakshb.dev"
-              className="hover:underline font-medium hover:text-primary transition-colors duration-200"
-              target="_blank"
-              rel="noopener noreferrer">
-              lakshaybhushan
-            </Link>
+              <span className="text-muted-foreground">By</span>
+              <Link
+                href="https://lakshb.dev"
+                className="hover:underline font-medium hover:text-primary transition-colors duration-200"
+                target="_blank"
+                rel="noopener noreferrer">
+                lakshaybhushan
+              </Link>
+
           </div>
         </div>
       </motion.footer>
