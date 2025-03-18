@@ -128,8 +128,7 @@ export default function Home() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}>
-                  *Works best with SVGs having simple geometries and with no
-                  fill.
+                  *Works best with SVGs having simple geometry and transparent background.
                 </motion.p>
               </motion.div>
 
