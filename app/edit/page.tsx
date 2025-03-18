@@ -15,7 +15,7 @@ import { toast } from "sonner"
 import { EffectComposer, Bloom, BrightnessContrast, SMAA } from "@react-three/postprocessing"
 import { BlendFunction } from "postprocessing"
 import React from "react"
-import { ModeToggle } from "@/components/ui/mode-toggle"
+import { ModeToggle } from "@/components/ui/theme-toggle"
 
 // Import extracted components
 import { GeometryControls } from "@/components/controls/geometry-controls"
