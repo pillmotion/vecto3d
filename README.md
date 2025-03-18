@@ -1,2 +1,4 @@
 - [ ] Add Umami for analytics
 - [ ] Open Graph Images
+- [ ] Add Drag and Drop
+- [ ] Add Preview Pictures in Landing Page 
