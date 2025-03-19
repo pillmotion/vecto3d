@@ -37,7 +37,6 @@ import {
   pageTransition,
 } from "@/lib/animation-values";
 
-// Import extracted components
 import { GeometryControls } from "@/components/controls/geometry-controls";
 import { MaterialControls } from "@/components/controls/material-controls";
 import { EnvironmentControls } from "@/components/controls/environment-controls";
@@ -45,35 +44,27 @@ import { BackgroundControls } from "@/components/controls/background-controls";
 import { ExportButtons } from "@/components/export-buttons";
 import { EditorMobileWarning } from "@/components/mobile-warning";
 
-// Import constants and types
 import {
   MATERIAL_PRESETS,
   DARK_MODE_COLOR,
   LIGHT_MODE_COLOR,
-  ENVIRONMENT_PRESETS,
 } from "@/lib/constants";
 
-// Import hooks
 import { useDebounce } from "@/hooks/use-debounce";
 import { useMobileDetection } from "@/hooks/use-mobile-detection";
 
-// Background color sync with theme
 function useThemeBackgroundColor() {
   const { theme, resolvedTheme } = useTheme();
 
-  // Return background color based on resolved theme (handles system preference correctly)
   return useMemo(() => {
-    // resolvedTheme gives us the actual applied theme (light/dark) even when set to 'system'
     if (resolvedTheme === "dark") return DARK_MODE_COLOR;
     return LIGHT_MODE_COLOR;
   }, [resolvedTheme]);
 }
 
-// Custom environment component that uses a texture instead of a direct HDRI
 function CustomEnvironment({ imageUrl }: { imageUrl: string }) {
   const texture = useTexture(imageUrl);
 
-  // Convert the texture to an environment map
   useEffect(() => {
     if (texture) {
       texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -83,7 +74,6 @@ function CustomEnvironment({ imageUrl }: { imageUrl: string }) {
   return <Environment map={texture} background={false} />;
 }
 
-// Simple environment component without animations
 function SimpleEnvironment({
   environmentPreset,
   customHdriUrl,
@@ -102,7 +92,6 @@ function SimpleEnvironment({
   );
 }
 
-// Interface for ModelPreview component props
 interface ModelPreviewProps {
   svgData: string;
   depth: number;
@@ -141,7 +130,6 @@ interface ModelPreviewProps {
   onError: (error: Error) => void;
 }
 
-// Split out model preview to a separate component to prevent unnecessary rerenders
 const ModelPreview = React.memo<ModelPreviewProps>(
   ({
     svgData,
@@ -180,7 +168,6 @@ const ModelPreview = React.memo<ModelPreviewProps>(
     onLoadComplete,
     onError,
   }) => {
-    // Use ref to avoid recreating camera on each render
     const cameraRef = useRef(
       new THREE.PerspectiveCamera(
         50,
@@ -190,7 +177,6 @@ const ModelPreview = React.memo<ModelPreviewProps>(
       ),
     );
 
-    // Update camera aspect ratio on resize
     useEffect(() => {
       const handleResize = () => {
         if (cameraRef.current) {
@@ -205,7 +191,6 @@ const ModelPreview = React.memo<ModelPreviewProps>(
       };
     }, []);
 
-    // Configure post-processing based on options
     const effects = useMemo(() => {
       if (useBloom) {
         return (
@@ -234,7 +219,6 @@ const ModelPreview = React.memo<ModelPreviewProps>(
       return null;
     }, [useBloom, bloomIntensity, bloomMipmapBlur, isMobile]);
 
-    // Create memoized environment component
     const environment = useMemo(() => {
       if (!useEnvironment) return null;
 
@@ -246,16 +230,15 @@ const ModelPreview = React.memo<ModelPreviewProps>(
       );
     }, [useEnvironment, environmentPreset, customHdriUrl]);
 
-    // Return null early if no SVG data
     if (!svgData) return null;
 
     return (
       <Canvas
         shadows
         camera={{ position: [0, 0, 150], fov: 50 }}
-        dpr={window?.devicePixelRatio || 1.5} // Adaptive pixel ratio based on device
-        frameloop="demand" // Only render when needed for better performance
-        performance={{ min: 0.5 }} // Allow adaptive performance
+        dpr={window?.devicePixelRatio || 1.5}
+        frameloop="demand"
+        performance={{ min: 0.5 }}
         gl={{
           antialias: true,
           outputColorSpace: "srgb",
@@ -264,7 +247,6 @@ const ModelPreview = React.memo<ModelPreviewProps>(
           preserveDrawingBuffer: true,
           powerPreference: "high-performance",
           alpha: true,
-          // Optimize antialiasing for performance
           logarithmicDepthBuffer: false,
           precision: isMobile ? "mediump" : "highp",
           stencil: false,
@@ -279,20 +261,16 @@ const ModelPreview = React.memo<ModelPreviewProps>(
           bottom: 0,
         }}>
         <Suspense fallback={null}>
-          {/* Background color */}
           <color attach="background" args={[backgroundColor]} />
-
-          {/* Add a low intensity ambient light for minimum illumination */}
+        
           <ambientLight intensity={0.6 * Math.PI} />
 
-          {/* Add directional light for better shape definition */}
           <directionalLight
             position={[50, 50, 100]}
             intensity={0.8 * Math.PI}
             castShadow={false}
           />
 
-          {/* Environment lighting */}
           {environment}
 
           <group ref={modelGroupRef} rotation={[0, modelRotationY, 0]}>
@@ -318,7 +296,6 @@ const ModelPreview = React.memo<ModelPreviewProps>(
           </group>
         </Suspense>
 
-        {/* Post-processing effects */}
         {effects}
 
         <OrbitControls
@@ -336,7 +313,6 @@ const ModelPreview = React.memo<ModelPreviewProps>(
   },
 );
 
-// Ensure proper display name for React DevTools
 ModelPreview.displayName = "ModelPreview";
 
 // Loading state component
@@ -356,7 +332,6 @@ const ModelLoadingState = ({ message }: { message: string }) => (
   </div>
 );
 
-// Error state component
 const ModelErrorState = ({ error }: { error: string }) => (
   <div className="w-full h-full flex items-center justify-center bg-destructive/5">
     <div className="max-w-sm p-6 text-center">
@@ -370,7 +345,6 @@ const ModelErrorState = ({ error }: { error: string }) => (
 );
 
 export default function EditPage() {
-  // React.useState imports before all the other hooks
   const [svgData, setSvgData] = useState<string | null>(null);
   const [depth, setDepth] = useState<number>(5);
   const [isModelLoading, setIsModelLoading] = useState<boolean>(true);
@@ -387,7 +361,6 @@ export default function EditPage() {
   const [customColor, setCustomColor] = useState<string>("#3498db");
   const [useCustomColor, setUseCustomColor] = useState<boolean>(false);
 
-  // Material properties with presets
   const [materialPreset, setMaterialPreset] = useState<string>("metallic");
   const initialPreset =
     MATERIAL_PRESETS.find((p) => p.name === "metallic") || MATERIAL_PRESETS[0];
@@ -401,43 +374,34 @@ export default function EditPage() {
     initialPreset.transmission,
   );
 
-  // Hollow SVG optimization option
   const [isHollowSvg, setIsHollowSvg] = useState<boolean>(false);
 
-  // Environment settings
   const [useEnvironment, setUseEnvironment] = useState<boolean>(true);
   const [environmentPreset, setEnvironmentPreset] =
     useState<string>("apartment");
 
-  // Model rotation settings
   const [modelRotationY, setModelRotationY] = useState<number>(0);
 
-  // Background options - with theme awareness
   const [userSelectedBackground, setUserSelectedBackground] =
     useState<boolean>(false);
   const [backgroundColor, setBackgroundColor] =
     useState<string>(LIGHT_MODE_COLOR);
   const [solidColorPreset, setSolidColorPreset] = useState<string>("light");
 
-  // Auto-rotation controls - adjusted scale and DEFAULT OFF
   const [autoRotate, setAutoRotate] = useState<boolean>(false);
   const [autoRotateSpeed, setAutoRotateSpeed] = useState<number>(3);
 
-  // Use useRef for objects that shouldn't trigger re-renders
   const modelRef = useRef<THREE.Group | null>(null);
   const modelGroupRef = useRef<THREE.Group | null>(null);
   const hdriFileInputRef = useRef<HTMLInputElement>(null);
 
-  // HDRI image state
   const [customHdriUrl, setCustomHdriUrl] = useState<string | null>(null);
   const [customImageError, setCustomImageError] = useState<string | null>(null);
 
-  // Bloom effect settings - disabled by default
   const [useBloom, setUseBloom] = useState<boolean>(false);
   const [bloomIntensity, setBloomIntensity] = useState<number>(1.0);
   const [bloomMipmapBlur, setBloomMipmapBlur] = useState<boolean>(true);
 
-  // Vibe Mode specific settings
   const [vibeModeOriginalMaterial, setVibeModeOriginalMaterial] = useState<
     string | null
   >(null);
@@ -451,20 +415,16 @@ export default function EditPage() {
     clearMobilePreference,
   } = useMobileDetection();
 
-  // Get theme-aware background color
   const themeBackgroundColor = useThemeBackgroundColor();
-
-  // Clean up resources when component unmounts
+// cleanup
   useEffect(() => {
     return () => {
-      // Clear references to any large objects
       if (customHdriUrl && customHdriUrl.startsWith("data:")) {
         URL.revokeObjectURL(customHdriUrl);
       }
     };
   }, [customHdriUrl]);
 
-  // Update background color when theme changes if user hasn't selected a custom one
   useEffect(() => {
     if (!userSelectedBackground) {
       setBackgroundColor(themeBackgroundColor);
@@ -472,14 +432,14 @@ export default function EditPage() {
     }
   }, [resolvedTheme, themeBackgroundColor, userSelectedBackground]);
 
-  // Debounce expensive operations
+  // debounce expensive operations
   const debouncedSvgData = useDebounce(svgData, 300);
 
-  // Update loading state when SVG data changes
+  // update loading state when svg data changes
   useEffect(() => {
     if (debouncedSvgData) {
       setIsModelLoading(true);
-      // Simulate processing time for complex SVGs
+      // simulate processing time for complex svg
       const timer = setTimeout(() => {
         setIsModelLoading(false);
       }, 800);
@@ -488,12 +448,9 @@ export default function EditPage() {
     }
   }, [debouncedSvgData]);
 
-  // Helper to detect if the SVG is potentially hollow based on path analysis
   useEffect(() => {
     if (!debouncedSvgData) return;
 
-    // More accurate hollow SVG detection:
-    // Look for indicators of hollow SVGs like icons with inner parts
     const hasClosedPath =
       debouncedSvgData.includes("Z") || debouncedSvgData.includes("z");
     const hasMultiplePaths =
@@ -502,10 +459,6 @@ export default function EditPage() {
     const hasEllipse = debouncedSvgData.includes("<ellipse");
     const hasRect = debouncedSvgData.includes("<rect");
 
-    // SVGs likely to have hollow parts:
-    // 1. Has multiple closed paths
-    // 2. Contains shapes like circles, ellipses or rectangles
-    // 3. Contains "smile" or "face" related SVGs (like emojis)
     const isLikelyHollow =
       (hasClosedPath &&
         (hasMultiplePaths || hasCircles || hasEllipse || hasRect)) ||
@@ -515,7 +468,6 @@ export default function EditPage() {
     setIsHollowSvg(isLikelyHollow);
   }, [debouncedSvgData]);
 
-  // Retrieve SVG data from localStorage on component mount
   useEffect(() => {
     setIsModelLoading(true);
     const savedSvgData = localStorage.getItem("svgData");
@@ -523,12 +475,11 @@ export default function EditPage() {
 
     if (savedSvgData) {
       setSvgData(savedSvgData);
-      // Loading state will be handled by the debouncedSvgData effect
     } else {
       setIsModelLoading(false);
       
       if (!savedSvgData) {
-        // If no svg data, redirect to home page
+
         router.push("/");
       }
     }
@@ -539,74 +490,61 @@ export default function EditPage() {
   }, [router]);
 
   const handleBackToHome = () => {
-    // Clear mobile preference when going back
     clearMobilePreference();
     router.push("/");
   };
 
-  // When enabling/disabling Vibe Mode
   const toggleVibeMode = (newState: boolean) => {
-    // Check if custom image is selected
+
     if (newState && environmentPreset === "custom" && customHdriUrl) {
       toast.error("Vibe Mode is not available with custom images", {
         duration: 3000,
       });
-      return; // Don't enable Vibe Mode
+      return;
     }
 
     setUseBloom(newState);
 
     if (newState) {
-      // Entering Vibe Mode
 
-      // Set dark background
       setUserSelectedBackground(true);
       setBackgroundColor("#000000");
       setSolidColorPreset("custom");
 
-      // Disable auto-rotation
       setAutoRotate(false);
 
-      // Store current material color for restoration later
       if (useCustomColor) {
         setVibeModeOriginalMaterial(customColor);
       }
 
-      // Override material to black
       setUseCustomColor(true);
       setCustomColor("#000000");
 
-      // Keep custom HDRI if used
       if (environmentPreset === "custom" && customHdriUrl) {
-        // Keep the custom HDRI
+
       } else {
-        // Override to dawn environment preset for better effect
         setEnvironmentPreset("dawn");
       }
     } else {
-      // Exiting Vibe Mode
 
-      // Show alert if using custom environment
+
       if (environmentPreset === "custom" && customHdriUrl) {
         toast.info("Custom environment maintained after exiting Vibe Mode", {
           duration: 3000,
         });
       }
 
-      // Restore original material if available
       if (vibeModeOriginalMaterial) {
         setCustomColor(vibeModeOriginalMaterial);
         setVibeModeOriginalMaterial(null);
       } else if (useCustomColor) {
-        // Keep custom color if one was set
       } else {
-        // Restore to using SVG colors
+
         setUseCustomColor(false);
       }
     }
   };
 
-  // Add an effect to disable Vibe Mode when custom image is selected
   useEffect(() => {
     if (environmentPreset === "custom" && customHdriUrl && useBloom) {
       toggleVibeMode(false);
@@ -619,7 +557,6 @@ export default function EditPage() {
     }
   }, [environmentPreset, customHdriUrl, useBloom]);
 
-  // Optimize model preview using memoization
   const renderModelPreview = () => {
     if (!svgData) {
       return <ModelLoadingState message="Waiting for SVG data..." />;
@@ -686,7 +623,6 @@ export default function EditPage() {
       initial="initial"
       animate="animate"
       exit="exit">
-      {/* Fixed header/navbar */}
       <motion.header
         className="sticky top-0 z-10 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b"
         initial={{ opacity: 0, y: -20 }}
@@ -717,7 +653,7 @@ export default function EditPage() {
         </div>
       </motion.header>
 
-      {/* Main content */}
+
       <div className="container flex-1 px-4 py-6">
         <AnimatePresence mode="wait">
           {isMobile && !continueOnMobile ? (
@@ -733,14 +669,12 @@ export default function EditPage() {
               />
             </motion.div>
           ) : (
-            /* Mobile-first design with order-last for preview on small screens */
             <motion.div
               key="editor-content"
               className="grid grid-cols-1 lg:grid-cols-2 gap-6"
               variants={staggerContainer(0.2)}
               initial="hidden"
               animate="show">
-              {/* 3D Preview - Order first on mobile so it appears at the top */}
               <motion.div
                 variants={modelContainerAnimation}
                 className="h-[400px] sm:h-[500px] lg:h-[600px] order-first lg:order-last relative overflow-hidden">
@@ -762,7 +696,6 @@ export default function EditPage() {
                 </Card>
               </motion.div>
 
-              {/* Controls - Shown below the preview on mobile */}
               <motion.div
                 className="space-y-6 order-last lg:order-first"
                 variants={cardAnimation}>

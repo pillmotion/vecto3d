@@ -49,7 +49,7 @@ Use it as you want, but please give me credits by tagging me on [X (Twitter)](ht
 
 ## Support
 
-If you like the app, please star the repository and share it with your friends and people you know. You can also support me by [buying me a coffee](https://www.buymeacoffee.com/lakshaybhushan)
+If you like the app, please star the repository and share it with your friends and people you know. You can also support me by [buying me a coffee](https://www.buymeacoffee.com/lakshaybhushan).
 
 <a href="https://www.buymeacoffee.com/lakshaybhushan" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50" width="200"></a>
 

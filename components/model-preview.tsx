@@ -13,7 +13,6 @@ import { SVGModel } from "./svg-model";
 import { ModelPreviewProps } from "@/lib/types";
 import { SimpleEnvironment } from "./environment-presets";
 
-// Split out model preview to a separate component to prevent unnecessary rerenders
 const ModelPreviews = React.memo<ModelPreviewProps>(
   ({
     svgData,
@@ -21,14 +20,12 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
     modelRotationY,
     modelGroupRef,
     modelRef,
-    // Geometry settings
     bevelEnabled,
     bevelThickness,
     bevelSize,
     bevelSegments,
     isHollowSvg,
     spread,
-    // Material settings
     useCustomColor,
     customColor,
     roughness,
@@ -36,12 +33,10 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
     clearcoat,
     transmission,
     envMapIntensity,
-    // Environment settings
     backgroundColor,
     useEnvironment,
     environmentPreset,
     customHdriUrl,
-    // Rendering options
     autoRotate,
     autoRotateSpeed,
     useBloom,
@@ -49,7 +44,6 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
     bloomMipmapBlur,
     isMobile,
   }) => {
-    // Use ref to avoid recreating camera on each render
     const cameraRef = useRef(
       new THREE.PerspectiveCamera(
         50,
@@ -59,7 +53,6 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
       ),
     );
 
-    // Update camera aspect ratio on resize
     useEffect(() => {
       const handleResize = () => {
         if (cameraRef.current) {
@@ -74,7 +67,6 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
       };
     }, []);
 
-    // Configure post-processing based on options
     const effects = useMemo(() => {
       if (useBloom) {
         return (
@@ -103,7 +95,6 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
       return null;
     }, [useBloom, bloomIntensity, bloomMipmapBlur, isMobile]);
 
-    // Create memoized environment component
     const environment = useMemo(() => {
       if (!useEnvironment) return null;
 
@@ -115,16 +106,15 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
       );
     }, [useEnvironment, environmentPreset, customHdriUrl]);
 
-    // Return null early if no SVG data
     if (!svgData) return null;
 
     return (
       <Canvas
         shadows
         camera={{ position: [0, 0, 150], fov: 50 }}
-        dpr={window?.devicePixelRatio || 1.5} // Adaptive pixel ratio based on device
-        frameloop="demand" // Only render when needed for better performance
-        performance={{ min: 0.5 }} // Allow adaptive performance
+        dpr={window?.devicePixelRatio || 1.5}
+        frameloop="demand"
+        performance={{ min: 0.5 }}
         gl={{
           antialias: true,
           outputColorSpace: "srgb",
@@ -133,26 +123,18 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
           preserveDrawingBuffer: true,
           powerPreference: "high-performance",
           alpha: true,
-          // Optimize antialiasing for performance
           logarithmicDepthBuffer: false,
           precision: isMobile ? "mediump" : "highp",
           stencil: false,
         }}>
         <color attach="background" args={[backgroundColor]} />
-
-        {/* Add a low intensity ambient light for minimum illumination */}
         <ambientLight intensity={0.6 * Math.PI} />
-
-        {/* Add directional light for better shape definition */}
         <directionalLight
           position={[50, 50, 100]}
           intensity={0.8 * Math.PI}
           castShadow={false}
         />
-
-        {/* Environment lighting */}
         {environment}
-
         <group ref={modelGroupRef} rotation={[0, modelRotationY, 0]}>
           <SVGModel
             svgData={svgData}
@@ -174,10 +156,7 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
             ref={modelRef}
           />
         </group>
-
-        {/* Post-processing effects */}
         {effects}
-
         <OrbitControls
           autoRotate={autoRotate}
           autoRotateSpeed={autoRotateSpeed}
@@ -193,7 +172,6 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
   },
 );
 
-// Ensure proper display name for React DevTools
 ModelPreviews.displayName = "ModelPreviews";
 
 export { ModelPreviews };

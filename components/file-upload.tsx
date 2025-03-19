@@ -22,7 +22,6 @@ export function FileUpload({ onFileUpload, fileName }: FileUploadProps) {
       };
       reader.readAsText(file);
     } else if (file) {
-      // Show an error for non-SVG files
       alert("Please upload an SVG file (.svg)");
     }
   };
@@ -55,7 +54,6 @@ export function FileUpload({ onFileUpload, fileName }: FileUploadProps) {
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set isDragging to false if we're leaving the drop zone (not a child element)
     if (e.currentTarget === dropZoneRef.current) {
       setIsDragging(false);
     }
@@ -109,7 +107,6 @@ export function FileUpload({ onFileUpload, fileName }: FileUploadProps) {
             />
 
             <div className="flex flex-col items-center justify-center">
-              {/* Display actual SVG or file icon */}
               <motion.div
                 className="relative h-fit mb-6 flex items-center justify-center"
                 animate={{
@@ -201,7 +198,6 @@ export function FileUpload({ onFileUpload, fileName }: FileUploadProps) {
               </div>
             </div>
 
-            {/* Animated blobs in the background when dragging */}
             {isDragging && (
               <>
                 <motion.div

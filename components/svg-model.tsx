@@ -34,7 +34,6 @@ interface SVGModelProps {
   onError?: (error: Error) => void;
 }
 
-// Create a helper function outside the component to compute the area of a path's bounding box
 const getPathBoundingArea = (path: THREE.ShapePath) => {
   if (path.subPaths.length === 0) return 0;
 
@@ -55,38 +54,31 @@ const getPathBoundingArea = (path: THREE.ShapePath) => {
   return (maxX - minX) * (maxY - minY);
 };
 
-// Apply spread to a shape (scale it inward or outward)
 const applySpread = (
   shape: THREE.Shape,
   isHole: boolean,
   amount: number,
 ): THREE.Shape => {
-  if (amount === 0) return shape; // No spread needed
+  if (amount === 0) return shape;
 
-  // Use THREE.ShapeUtils.triangulateShape to get a coarse triangulation
-  // This helps us compute the center of the shape more accurately
   const pts = shape.getPoints();
-  if (pts.length < 3) return shape; // Can't modify shapes with fewer than 3 points
+  if (pts.length < 3) return shape;
 
   const center = new THREE.Vector2();
   pts.forEach((pt) => center.add(pt));
   center.divideScalar(pts.length);
 
-  // Create a new shape with spread applied
   const newShape = new THREE.Shape();
-  const scaleAmount = isHole ? 1 - amount / 100 : 1; // Holes shrink inward, outer shapes stay the same
+  const scaleAmount = isHole ? 1 - amount / 100 : 1;
 
-  // Apply scale from center for each point
   const newPoints = pts.map((pt) => {
     const dir = new THREE.Vector2().subVectors(pt, center);
     const scaledDir = dir.multiplyScalar(scaleAmount);
     return center.clone().add(scaledDir);
   });
 
-  // Create the new shape from the modified points
   newShape.setFromPoints(newPoints);
 
-  // Copy holes if any, and apply spread to them too
   if (shape.holes && shape.holes.length > 0) {
     newShape.holes = shape.holes.map((hole) => {
       const holePts = hole.getPoints();
@@ -95,7 +87,6 @@ const applySpread = (
       holeCenter.divideScalar(holePts.length);
 
       const newHole = new THREE.Path();
-      // Holes in holes: expand outward to create a larger gap
       const holeScaleAmount = 1 + amount / 200;
 
       const newHolePoints = holePts.map((pt) => {
@@ -112,16 +103,13 @@ const applySpread = (
   return newShape;
 };
 
-// Check if one path is contained within another
 const isPathInsideAnother = (
   innerPath: THREE.ShapePath,
   outerPath: THREE.ShapePath,
 ) => {
-  // Simple check: if all points of inner path are inside the outer path's bounding box
   const innerPoints = innerPath.subPaths.flatMap((sp) => sp.getPoints());
   if (innerPoints.length === 0) return false;
 
-  // Get outer path bounding box
   let outerMinX = Infinity,
     outerMinY = Infinity;
   let outerMaxX = -Infinity,
@@ -136,14 +124,12 @@ const isPathInsideAnother = (
     });
   });
 
-  // Check if inner path is contained
   return innerPoints.every(
     (p) =>
       p.x > outerMinX && p.x < outerMaxX && p.y > outerMinY && p.y < outerMaxY,
   );
 };
 
-// Check if a path is closed
 const isClosedPath = (path: THREE.ShapePath) => {
   return path.subPaths.some((subPath) => {
     const points = subPath.getPoints();
@@ -184,24 +170,18 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const groupRef = useRef<THREE.Group>(null);
 
-    // Cache materials to avoid recreating them on every render
     const materialsCache = useRef<Map<string, THREE.Material>>(new Map());
 
     useImperativeHandle(ref, () => groupRef.current!, []);
 
-    // Parse SVG data only when svgData or isHollowSvg changes
     useEffect(() => {
       if (!svgData) return;
 
-      // Skip parsing if SVG data hasn't changed
-      const svgHash = btoa(svgData).slice(0, 20); // Simple hash for comparison
+      const svgHash = btoa(svgData).slice(0, 20);
 
-      // Call loading start
       onLoadStart?.();
 
-      // Parse the SVG data
       try {
-        // Create a temporary DOM element to hold the SVG
         const parser = new DOMParser();
         const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
         const svgElement = svgDoc.querySelector("svg");
@@ -210,7 +190,6 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
           throw new Error("Invalid SVG: No SVG element found");
         }
 
-        // Get SVG dimensions
         const viewBox = svgElement.getAttribute("viewBox");
         let width = Number.parseFloat(
           svgElement.getAttribute("width") || "100",
@@ -229,52 +208,42 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
 
         setDimensions({ width, height });
 
-        // Load SVG paths
         const loader = new SVGLoader();
         const svgData2 = loader.parse(svgData);
         
-        // Sort paths by area (largest first) to help with proper hole detection
         const sortedPaths = [...svgData2.paths].sort((a, b) => {
-          // Estimate path area by bounding box
           const areaA = getPathBoundingArea(a);
           const areaB = getPathBoundingArea(b);
-          return areaB - areaA; // Largest first
+          return areaB - areaA;
         });
         
         setPaths(sortedPaths);
 
-        // Successful load
         setTimeout(() => {
           onLoadComplete?.();
-        }, 300); // Small delay to allow rendering
+        }, 300);
       } catch (error) {
         console.error("Error parsing SVG:", error);
         onError?.(error instanceof Error ? error : new Error("Failed to parse SVG"));
       }
 
       return () => {
-        // Cleanup textures and materials on re-render
         materialsCache.current.clear();
       };
     }, [svgData, onLoadStart, onLoadComplete, onError]);
 
-    // Process SVG paths into 3D shapes with proper hole handling
     const shapesWithMaterials = useMemo(() => {
       if (paths.length === 0) return [];
 
-      // For complex SVGs like the smiley face
       if (isHollowSvg || paths.length > 1) {
         try {
-          // Find outer paths (containers) and inner paths (potential holes)
           const outerPaths: THREE.ShapePath[] = [];
           const innerPaths: THREE.ShapePath[] = [];
 
-          // First pass - identify outer and inner paths
           paths.forEach((path) => {
             if (isClosedPath(path)) {
               let isInner = false;
 
-              // Check if this path is inside any other path
               for (const otherPath of paths) {
                 if (
                   path !== otherPath &&
@@ -291,50 +260,17 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
                 outerPaths.push(path);
               }
             } else {
-              // Non-closed paths are treated as decorative elements
               outerPaths.push(path);
             }
           });
 
-          // Create shapes with holes
           const result = [];
+          const processedInnerPaths = new Set();
 
-          // Process outer paths first
           for (const outerPath of outerPaths) {
             try {
-              // Create the base shape
-              const shapes = outerPath.toShapes(false); // Don't auto-detect holes
+              const shapes = SVGLoader.createShapes(outerPath);
               const pathColor = customColor || outerPath.color;
-
-              // Find inner paths that could be holes in this outer path
-              const potentialHoles = innerPaths.filter((innerPath) =>
-                isPathInsideAnother(innerPath, outerPath),
-              );
-
-              // If we have potential holes
-              if (potentialHoles.length > 0 && shapes.length > 0) {
-                // For each shape from the outer path
-                shapes.forEach((outerShape) => {
-                  potentialHoles.forEach((holePath) => {
-                    try {
-                      // Convert inner path to shape
-                      const holeShapes = holePath.toShapes(false);
-                      // Add each hole shape to the outer shape
-                      holeShapes.forEach((holeShape) => {
-                        // Apply spread to the hole shape if needed
-                        const spreadHoleShape = applySpread(
-                          holeShape,
-                          true,
-                          spread,
-                        );
-                        outerShape.holes.push(spreadHoleShape);
-                      });
-                    } catch (error) {
-                      console.warn("Error adding hole shape:", error);
-                    }
-                  });
-                });
-              }
 
               const processedShapes = shapes.map((shape) =>
                 applySpread(shape, false, spread),
@@ -343,32 +279,37 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
               result.push({
                 shapes: processedShapes,
                 color: pathColor,
-                renderOrder: 0, // Base shape gets rendered first
+                renderOrder: 0,
                 isHole: false,
+              });
+
+              innerPaths.forEach((innerPath) => {
+                if (isPathInsideAnother(innerPath, outerPath)) {
+                  processedInnerPaths.add(innerPath);
+                }
               });
             } catch (error) {
               console.warn("Error creating shapes from outer path:", error);
             }
           }
 
-          // Also add inner paths as separate shapes with a small offset
-          // This ensures features like eyes still appear if hole detection fails
           for (const innerPath of innerPaths) {
-            try {
-              const shapes = innerPath.toShapes(false);
-              // Apply spread to inner shapes
-              const processedShapes = shapes.map((shape) =>
-                applySpread(shape, true, spread),
-              );
+            if (!processedInnerPaths.has(innerPath)) {
+              try {
+                const shapes = SVGLoader.createShapes(innerPath);
+                const processedShapes = shapes.map((shape) =>
+                  applySpread(shape, true, spread),
+                );
 
-              result.push({
-                shapes: processedShapes,
-                color: customColor || innerPath.color,
-                renderOrder: 1, // Inner shapes rendered after base shapes
-                isHole: true,
-              });
-            } catch (error) {
-              console.warn("Error creating shapes from inner path:", error);
+                result.push({
+                  shapes: processedShapes,
+                  color: customColor || innerPath.color,
+                  renderOrder: 1,
+                  isHole: true,
+                });
+              } catch (error) {
+                console.warn("Error creating shapes from inner path:", error);
+              }
             }
           }
 
@@ -378,13 +319,11 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
         }
       }
 
-      // Fallback to standard processing if advanced processing fails
       return paths
         .map((path) => {
           try {
-            const shapes = path.toShapes(true); // Try with auto hole detection
+            const shapes = SVGLoader.createShapes(path);
 
-            // Apply spread to all shapes in fallback mode too
             const processedShapes = shapes.map((shape) =>
               applySpread(shape, false, spread),
             );
@@ -408,13 +347,11 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
         .filter((item) => item.shapes.length > 0);
     }, [paths, customColor, isHollowSvg, spread]);
 
-    // Scale factor to fit the model in view - memoized to avoid recalculation
     const scale = useMemo(() => {
       if (dimensions.width === 0 || dimensions.height === 0) return 1;
       return 100 / Math.max(dimensions.width, dimensions.height);
     }, [dimensions]);
 
-    // Create and cache material based on parameters
     const getMaterial = (color: string | THREE.Color, isHole: boolean) => {
       const colorKey =
         typeof color === "string" ? color : "#" + color.getHexString();
@@ -423,7 +360,7 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       if (!materialsCache.current.has(key)) {
         const material = new THREE.MeshPhysicalMaterial({
           color,
-          side: THREE.FrontSide,
+          side: THREE.DoubleSide,
           roughness,
           metalness,
           clearcoat,
@@ -445,10 +382,9 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
           polygonOffset: true,
           polygonOffsetFactor: isHole ? -2 : 1,
           polygonOffsetUnits: 1,
-          depthWrite: !isHole,
+          depthWrite: true,
         });
 
-        // Store hole status in userData for export reference
         material.userData.isHole = isHole;
 
         materialsCache.current.set(key, material);
@@ -459,9 +395,7 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
 
     const handleSvgGroupCreated = (group: THREE.Group) => {
       try {
-        // ... existing code ...
         
-        // Notify of successful load
         onLoadComplete?.();
       } catch (error) {
         console.error("Error processing SVG:", error);
@@ -469,16 +403,13 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       }
     };
 
-    // Cleanup meshes and geometries when component unmounts
     useEffect(() => {
       return () => {
-        // Clear cached materials
         materialsCache.current.forEach((material) => {
           if (material) material.dispose();
         });
         materialsCache.current.clear();
 
-        // Clean up the group and its children
         if (groupRef.current) {
           groupRef.current.traverse((object) => {
             if (object instanceof THREE.Mesh) {
@@ -501,17 +432,15 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       };
     }, []);
 
-    // Optimization: return null early if no shapes
     if (shapesWithMaterials.length === 0) return null;
 
-    // Memoize the extrude geometry parameters
     const getExtrudeSettings = (isHole: boolean) => ({
       depth: isHole ? depth * 1.05 : depth,
       bevelEnabled,
       bevelThickness,
       bevelSize,
       bevelSegments,
-      curveSegments: 12, // Increased for smoother curves
+      curveSegments: 12,
     });
 
     return (
@@ -547,5 +476,4 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
   },
 );
 
-// Add a display name for better debugging in React DevTools
 SVGModel.displayName = "SVGModel";

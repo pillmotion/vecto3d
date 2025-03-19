@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { exportToSTL, exportToGLTF } from "@/lib/exporters";
 import { PNG_RESOLUTIONS } from "@/lib/constants";
 import { File, Image } from "lucide-react";
+
 interface ExportButtonsProps {
   fileName: string;
   modelGroupRef: React.RefObject<THREE.Group | null>;
@@ -21,13 +22,11 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
     format: "stl" | "gltf" | "glb" | "png",
     resolution?: number,
   ) => {
-    // Log what we have to debug
     console.log("Export attempt:", {
       hasGroupRef: !!modelGroupRef.current,
       fileName,
     });
 
-    // Check group ref first, as that's the parent containing the actual model
     if (!modelGroupRef.current || !fileName) {
       console.error("Export failed: Model group or filename missing");
       toast.error("Error: Cannot export - model not loaded");
@@ -39,18 +38,15 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
 
     try {
       if (format === "png") {
-        // Special handling for PNG screenshot
         const canvas = document.querySelector("canvas");
         if (!canvas) {
           toast.error("Could not find the 3D renderer");
           return false;
         }
 
-        // Use the provided resolution or default to 1x
         const pngResolution = resolution || 1;
 
         try {
-          // Create a temporary canvas with the desired resolution
           const exportCanvas = document.createElement("canvas");
           const ctx = exportCanvas.getContext("2d");
 
@@ -58,25 +54,16 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
             throw new Error("Could not get 2D context for export canvas");
           }
 
-          // Set the export canvas size based on the resolution
           exportCanvas.width = canvas.width * pngResolution;
           exportCanvas.height = canvas.height * pngResolution;
 
-          // Get the WebGL renderer from Three.js
           const renderer = (document.querySelector("canvas") as any)?.__r3f
             ?.fiber?.renderer;
 
           if (renderer) {
-            // Save current pixel ratio
             const currentPixelRatio = renderer.getPixelRatio();
-
-            // Set higher pixel ratio for the screenshot
             renderer.setPixelRatio(currentPixelRatio * pngResolution);
-
-            // Force a render at the higher resolution
             renderer.render(renderer.scene, renderer.camera);
-
-            // Capture the high-resolution render
             ctx.drawImage(
               canvas,
               0,
@@ -84,17 +71,10 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
               exportCanvas.width,
               exportCanvas.height,
             );
-
-            // Reset pixel ratio to original
             renderer.setPixelRatio(currentPixelRatio);
-
-            // Render once more at original resolution
             renderer.render(renderer.scene, renderer.camera);
-
-            // Free up GPU resources by explicitly calling dispose where possible
             renderer.renderLists.dispose();
           } else {
-            // Fallback if we can't access the renderer
             ctx.drawImage(
               canvas,
               0,
@@ -104,10 +84,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
             );
           }
 
-          // Get the image data as PNG
           const dataURL = exportCanvas.toDataURL("image/png", 0.95);
-
-          // Create and trigger download
           const link = document.createElement("a");
           link.download = `${baseName}.png`;
           link.href = dataURL;
@@ -116,11 +93,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
           document.body.removeChild(link);
 
           toast.success(`Image saved as ${baseName}.png`, { duration: 3000 });
-
-          // Clean up
           exportCanvas.remove();
-
-          // Explicitly release the dataURL to help garbage collection
           URL.revokeObjectURL(dataURL);
         } catch (error) {
           console.error("Error exporting PNG:", error);
@@ -130,17 +103,10 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         return true;
       }
 
-      // To avoid visible glitching, we'll create an invisible clone of the model
-      // and use that for export instead of modifying the visible model
-
-      // Clone the model group
       const modelGroupClone = modelGroupRef.current.clone();
-
-      // Reset the clone's rotation to zero (not visible to user)
       modelGroupClone.rotation.y = 0;
       modelGroupClone.updateMatrixWorld(true);
 
-      // Export using the invisible clone
       let success = false;
 
       if (format === "stl") {
@@ -153,9 +119,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         );
       }
 
-      // Dispose of the clone to free memory
       modelGroupClone.traverse((object) => {
-        // Type check and cast to access geometry and material properties
         const mesh = object as THREE.Mesh;
         if (mesh.geometry) {
           mesh.geometry.dispose();
@@ -171,7 +135,6 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         }
       });
 
-      // Only show success message
       if (success) {
         toast.success(
           `${baseName}.${format} has been downloaded successfully`,
@@ -192,7 +155,6 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Export Image Button */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -216,7 +178,6 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Export 3D Model Button */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" className="flex items-center gap-1">

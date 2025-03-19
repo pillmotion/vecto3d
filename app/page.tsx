@@ -12,7 +12,7 @@ import { ModeToggle } from "@/components/ui/theme-toggle";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaGithub } from "react-icons/fa";
 import { IoLogoVercel } from "react-icons/io5";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import {
   staggerContainer,
   fadeUp,
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 export default function Home() {
   const [svgData, setSvgData] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { isMobile, continueOnMobile, handleContinueOnMobile } =
     useMobileDetection();
@@ -32,18 +33,25 @@ export default function Home() {
     setFileName(name);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (svgData) {
-      // Store SVG data in localStorage to access it on the edit page
-      localStorage.setItem("svgData", svgData);
-      localStorage.setItem("fileName", fileName);
+      setIsLoading(true);
+      
+      try {
+        localStorage.setItem("svgData", svgData);
+        localStorage.setItem("fileName", fileName);
 
-      // Store the mobile device preference
-      if (isMobile) {
-        localStorage.setItem("continueOnMobile", "true");
+        if (isMobile) {
+          localStorage.setItem("continueOnMobile", "true");
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        router.push("/edit");
+      } catch (error) {
+        console.error("Error during navigation:", error);
+        setIsLoading(false);
       }
-
-      router.push("/edit");
     }
   };
 
@@ -52,13 +60,40 @@ export default function Home() {
       className="min-h-screen flex flex-col relative w-full"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
       exit={{ opacity: 0 }}>
+      
+      {/* Loading Overlay */}
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}>
+            <motion.div
+              className="flex flex-col items-center gap-4"
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 260, 
+                damping: 20 
+              }}>
+              <Loader2 className="h-12 w-12 text-primary animate-spin" />
+              <p className="text-xl font-medium">Preparing your 3D model...</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <motion.header
         className="w-full py-6 px-6 md:px-12 flex justify-between items-center"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}>
+        transition={{ duration: 0.5, ease: "easeOut" }}>
         <motion.div
           className="flex items-center space-x-2"
           variants={logoAnimation}
@@ -84,7 +119,7 @@ export default function Home() {
 
       <motion.div
         className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 py-8"
-        variants={staggerContainer(0.08)}
+        variants={staggerContainer(0.1)}
         initial="hidden"
         animate="show">
         {/* Main Headline */}
@@ -104,7 +139,11 @@ export default function Home() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.3 }}>
+              transition={{ 
+                type: "spring", 
+                stiffness: 300, 
+                damping: 25 
+              }}>
               <MobileWarning
                 onContinue={handleContinueOnMobile}
                 onReturn={() => {}}
@@ -118,7 +157,7 @@ export default function Home() {
               <motion.div
                 className="w-full"
                 variants={fadeUp}
-                transition={{ delay: 0.05 }}>
+                transition={{ delay: 0.1 }}>
                 <FileUpload
                   onFileUpload={handleFileUpload}
                   fileName={fileName}
@@ -127,7 +166,7 @@ export default function Home() {
                   className="text-base text-center text-muted-foreground mt-4"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}>
+                  transition={{ delay: 0.3 }}>
                   *Works best with SVGs having simple geometry and transparent background.
                 </motion.p>
               </motion.div>
@@ -140,13 +179,28 @@ export default function Home() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 20 }}
-                      transition={{ type: "spring", damping: 15 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 500, 
+                        damping: 25,
+                        mass: 1
+                      }}
                       className="w-full flex justify-center">
                       <RainbowButton
                         className="max-w-xl w-full md:w-1/2 mx-auto text-md py-6"
-                        onClick={handleContinue}>
+                        onClick={handleContinue}
+                        disabled={isLoading}>
                         <span className="flex items-center gap-2">
-                          Continue to Editor <ArrowRight size={16} />
+                          {isLoading ? (
+                            <>
+                              <Loader2 size={16} className="animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              Continue to Editor <ArrowRight size={16} />
+                            </>
+                          )}
                         </span>
                       </RainbowButton>
                     </motion.div>
@@ -163,7 +217,7 @@ export default function Home() {
         className="w-full py-6 px-6 md:px-12"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.3 }}>
+        transition={{ duration: 0.4, delay: 0.4 }}>
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             Hosted on{" "}
@@ -208,5 +262,6 @@ export default function Home() {
         </div>
       </motion.footer>
     </motion.main>
+
   );
 }
