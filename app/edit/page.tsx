@@ -173,8 +173,8 @@ const ModelPreview = React.memo<ModelPreviewProps>(
         50,
         window.innerWidth / window.innerHeight,
         1,
-        1000,
-      ),
+        1000
+      )
     );
 
     useEffect(() => {
@@ -262,7 +262,7 @@ const ModelPreview = React.memo<ModelPreviewProps>(
         }}>
         <Suspense fallback={null}>
           <color attach="background" args={[backgroundColor]} />
-        
+
           <ambientLight intensity={0.6 * Math.PI} />
 
           <directionalLight
@@ -310,7 +310,7 @@ const ModelPreview = React.memo<ModelPreviewProps>(
         />
       </Canvas>
     );
-  },
+  }
 );
 
 ModelPreview.displayName = "ModelPreview";
@@ -326,7 +326,9 @@ const ModelLoadingState = ({ message }: { message: string }) => (
       </div>
       <div className="space-y-2">
         <p className="text-sm font-medium">{message}</p>
-        <p className="text-xs text-muted-foreground">This may take a moment for complex SVGs</p>
+        <p className="text-xs text-muted-foreground">
+          This may take a moment for complex SVGs
+        </p>
       </div>
     </div>
   </div>
@@ -337,7 +339,11 @@ const ModelErrorState = ({ error }: { error: string }) => (
     <div className="max-w-sm p-6 text-center">
       <p className="text-destructive font-medium mb-2">Error processing SVG</p>
       <p className="text-xs text-muted-foreground">{error}</p>
-      <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.reload()}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-4"
+        onClick={() => window.location.reload()}>
         Try Again
       </Button>
     </div>
@@ -346,9 +352,11 @@ const ModelErrorState = ({ error }: { error: string }) => (
 
 export default function EditPage() {
   const [svgData, setSvgData] = useState<string | null>(null);
-  const [depth, setDepth] = useState<number>(5);
+  const [depth, setDepth] = useState<number>(1);
   const [isModelLoading, setIsModelLoading] = useState<boolean>(true);
-  const [svgProcessingError, setSvgProcessingError] = useState<string | null>(null);
+  const [svgProcessingError, setSvgProcessingError] = useState<string | null>(
+    null
+  );
 
   // Bevel options
   const [bevelEnabled, setBevelEnabled] = useState<boolean>(true);
@@ -368,10 +376,10 @@ export default function EditPage() {
   const [metalness, setMetalness] = useState<number>(initialPreset.metalness);
   const [clearcoat, setClearcoat] = useState<number>(initialPreset.clearcoat);
   const [envMapIntensity, setEnvMapIntensity] = useState<number>(
-    initialPreset.envMapIntensity,
+    initialPreset.envMapIntensity
   );
   const [transmission, setTransmission] = useState<number>(
-    initialPreset.transmission,
+    initialPreset.transmission
   );
 
   const [isHollowSvg, setIsHollowSvg] = useState<boolean>(false);
@@ -416,7 +424,7 @@ export default function EditPage() {
   } = useMobileDetection();
 
   const themeBackgroundColor = useThemeBackgroundColor();
-// cleanup
+  // cleanup
   useEffect(() => {
     return () => {
       if (customHdriUrl && customHdriUrl.startsWith("data:")) {
@@ -443,7 +451,7 @@ export default function EditPage() {
       const timer = setTimeout(() => {
         setIsModelLoading(false);
       }, 800);
-      
+
       return () => clearTimeout(timer);
     }
   }, [debouncedSvgData]);
@@ -477,9 +485,8 @@ export default function EditPage() {
       setSvgData(savedSvgData);
     } else {
       setIsModelLoading(false);
-      
-      if (!savedSvgData) {
 
+      if (!savedSvgData) {
         router.push("/");
       }
     }
@@ -495,7 +502,6 @@ export default function EditPage() {
   };
 
   const toggleVibeMode = (newState: boolean) => {
-
     if (newState && environmentPreset === "custom" && customHdriUrl) {
       toast.error("Vibe Mode is not available with custom images", {
         duration: 3000,
@@ -506,7 +512,6 @@ export default function EditPage() {
     setUseBloom(newState);
 
     if (newState) {
-
       setUserSelectedBackground(true);
       setBackgroundColor("#000000");
       setSolidColorPreset("custom");
@@ -521,13 +526,10 @@ export default function EditPage() {
       setCustomColor("#000000");
 
       if (environmentPreset === "custom" && customHdriUrl) {
-
       } else {
         setEnvironmentPreset("dawn");
       }
     } else {
-
-
       if (environmentPreset === "custom" && customHdriUrl) {
         toast.info("Custom environment maintained after exiting Vibe Mode", {
           duration: 3000,
@@ -539,7 +541,6 @@ export default function EditPage() {
         setVibeModeOriginalMaterial(null);
       } else if (useCustomColor) {
       } else {
-
         setUseCustomColor(false);
       }
     }
@@ -552,7 +553,7 @@ export default function EditPage() {
         "Vibe Mode has been disabled because you selected a custom image",
         {
           duration: 3000,
-        },
+        }
       );
     }
   }, [environmentPreset, customHdriUrl, useBloom]);
@@ -653,7 +654,6 @@ export default function EditPage() {
         </div>
       </motion.header>
 
-
       <div className="container flex-1 px-4 py-6">
         <AnimatePresence mode="wait">
           {isMobile && !continueOnMobile ? (
@@ -682,11 +682,11 @@ export default function EditPage() {
                   <CardHeader className="p-4 pb-4 border-b bg-background/80 backdrop-blur-sm z-10">
                     <CardTitle className="text-lg">Preview</CardTitle>
                     <CardDescription className="text-xs">
-                      {!svgData 
-                        ? "Loading SVG data..." 
-                        : isModelLoading 
-                          ? "Processing SVG..." 
-                          : "Interact with your 3D model"}
+                      {!svgData
+                        ? "Loading SVG data..."
+                        : isModelLoading
+                        ? "Processing SVG..."
+                        : "Interact with your 3D model"}
                     </CardDescription>
                   </CardHeader>
 

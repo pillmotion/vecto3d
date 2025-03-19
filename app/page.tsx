@@ -32,10 +32,30 @@ export default function Home() {
   const handleFileUpload = (data: string, name: string) => {
     setSvgData(data);
     setFileName(name);
+
+    setTimeout(() => {
+      const element = document.getElementById("continue-button-section");
+      if (element) {
+        window.scrollTo({
+          top: element.offsetTop - window.innerHeight / 4,
+          behavior: "smooth",
+        });
+      }
+    }, 300);
   };
 
   const handleIconSelect = (iconName: string) => {
     setSelectedIcon(iconName);
+
+    setTimeout(() => {
+      const element = document.getElementById("continue-button-section");
+      if (element) {
+        window.scrollTo({
+          top: element.offsetTop - window.innerHeight / 4,
+          behavior: "smooth",
+        });
+      }
+    }, 500);
   };
 
   const handleContinue = async () => {
@@ -128,9 +148,9 @@ export default function Home() {
         initial="hidden"
         animate="show">
         {/* Main Headline */}
-        <motion.div className="text-center mb-10 md:mb-16" variants={fadeUp}>
+        <motion.div className="text-center mb-10 md:mb-12" variants={fadeUp}>
           <motion.h1
-            className="font-serif text-4xl md:text-5xl lg:text-8xl tracking-tight leading-tight md:leading-tight"
+            className="font-serif text-4xl md:text-5xl lg:text-7xl tracking-tight leading-tight md:leading-tight"
             variants={fadeUp}>
             Transform Your Vectors <br className="hidden sm:block" />
             <span className="text-primary">in a New Dimension</span>
@@ -170,7 +190,7 @@ export default function Home() {
                   onIconSelect={handleIconSelect}
                 />
                 <motion.p
-                  className="text-base text-center text-muted-foreground mt-4"
+                  className="text-base text-center text-muted-foreground mt-4 mb-6"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}>
@@ -179,7 +199,9 @@ export default function Home() {
                 </motion.p>
               </motion.div>
 
-              <div className="h-24 mt-2 flex items-center justify-center">
+              <div
+                id="continue-button-section"
+                className="h-20 mb-8 mt-2 flex items-center justify-center">
                 <AnimatePresence>
                   {svgData && (
                     <motion.div
@@ -189,8 +211,8 @@ export default function Home() {
                       exit={{ opacity: 0, y: 20 }}
                       transition={{
                         type: "spring",
-                        stiffness: 500,
-                        damping: 25,
+                        stiffness: 400,
+                        damping: 30,
                         mass: 1,
                       }}
                       className="w-full flex justify-center">

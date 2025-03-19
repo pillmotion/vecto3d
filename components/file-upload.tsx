@@ -139,13 +139,13 @@ export function FileUpload({
       if (IconComponent) {
         return (
           <motion.div
-            className="relative z-10 flex items-center justify-center w-36 h-36"
+            className="relative z-10 flex items-center justify-center w-32 h-32"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", damping: 20 }}>
             <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl transform scale-75" />
-            <div className="relative z-10 w-24 h-24 p-1 rounded-xl bg-background/80 backdrop-blur-sm border-2 border-primary/30 shadow-xl shadow-primary/20 flex items-center justify-center overflow-hidden">
-              <IconComponent size={64} />
+            <div className="relative z-10 w-22 h-22 p-1 rounded-xl bg-background/80 backdrop-blur-sm border-2 border-primary/30 shadow-xl shadow-primary/20 flex items-center justify-center overflow-hidden">
+              <IconComponent size={58} />
             </div>
           </motion.div>
         );
@@ -163,7 +163,7 @@ export function FileUpload({
         <CardContent className="p-0">
           <motion.div
             ref={dropZoneRef}
-            className={`relative min-h-[300px] flex flex-col items-center justify-center cursor-pointer px-12 py-16 transition-all duration-300 ${
+            className={`relative min-h-[270px] flex flex-col items-center justify-center cursor-pointer px-10 py-14 transition-all duration-300 ${
               isDragging
                 ? "border-primary border-4 border-dashed bg-primary/10"
                 : "border-border border-2 border-dashed hover:bg-muted/30"
@@ -192,7 +192,7 @@ export function FileUpload({
 
             <div className="flex flex-col items-center justify-center">
               <motion.div
-                className="relative h-fit mb-6 flex items-center justify-center"
+                className="relative h-fit mb-5 flex items-center justify-center"
                 animate={{
                   scale: isDragging ? 1.1 : 1,
                   y: isDragging ? -5 : 0,
@@ -200,13 +200,13 @@ export function FileUpload({
                 transition={{ type: "spring", stiffness: 300, damping: 15 }}>
                 {svgContent ? (
                   <motion.div
-                    className="relative z-10 flex items-center justify-center w-36 h-36"
+                    className="relative z-10 flex items-center justify-center w-32 h-32"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ type: "spring", damping: 20 }}>
                     <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl transform scale-75" />
                     <div
-                      className="relative z-10 w-24 h-24 p-1 rounded-xl bg-background/80 backdrop-blur-sm border-2 border-primary/30 shadow-xl shadow-primary/20 flex items-center justify-center overflow-hidden"
+                      className="relative z-10 w-22 h-22 p-1 rounded-xl bg-background/80 backdrop-blur-sm border-2 border-primary/30 shadow-xl shadow-primary/20 flex items-center justify-center overflow-hidden"
                       dangerouslySetInnerHTML={{
                         __html: svgContent
                           .replace(/width="[^"]*"/, 'width="100%"')
@@ -221,7 +221,7 @@ export function FileUpload({
                 ) : (
                   <div>
                     <motion.div
-                      className={`relative z-10 p-4 rounded-xl border-2 shadow-lg ${
+                      className={`relative z-10 p-3.5 rounded-xl border-2 shadow-lg ${
                         isDragging
                           ? "border-primary bg-primary-foreground"
                           : "border-border bg-muted"
@@ -233,7 +233,7 @@ export function FileUpload({
                         rotate: { repeat: Infinity, duration: 0.5 },
                       }}>
                       <FileType
-                        className={`h-14 w-14 ${
+                        className={`h-12 w-12 ${
                           isDragging
                             ? "text-primary animate-pulse"
                             : "text-primary"
@@ -245,14 +245,14 @@ export function FileUpload({
                 )}
               </motion.div>
 
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-1.5">
                 <motion.div
                   animate={{
                     opacity: isDragging ? 0 : 1,
                     height: isDragging ? 0 : "auto",
                   }}
                   transition={{ duration: 0.2 }}>
-                  <p className="text-xl font-medium">
+                  <p className="text-lg font-medium">
                     {fileName ? (
                       <motion.span
                         initial={{ opacity: 0 }}
@@ -264,19 +264,19 @@ export function FileUpload({
                       "Click or drop your SVG file here"
                     )}
                   </p>
-                  <p className="text-muted-foreground text-sm mt-2">
+                  <p className="text-muted-foreground text-sm mt-1.5">
                     {svgContent || selectedIcon
                       ? "Let's make it 3D!"
                       : "We'll convert it to a 3D model and let you edit it"}
                   </p>
 
-                  <div className="mt-8">
-                    <div className="w-full h-[1px] bg-border my-4"></div>
-                    <p className="text-xs text-muted-foreground mb-4">
+                  <div className="mt-7">
+                    <div className="w-full h-[1px] bg-border my-3.5"></div>
+                    <p className="text-xs text-muted-foreground mb-3.5">
                       Or choose from below
                     </p>
                     <motion.div
-                      className="flex flex-wrap justify-center gap-4"
+                      className="flex flex-wrap justify-center gap-3.5"
                       variants={{
                         hidden: { opacity: 0 },
                         show: {
@@ -309,7 +309,7 @@ export function FileUpload({
                               selectedIcon === icon.name ? "default" : "outline"
                             }
                             size="lg"
-                            className={`flex flex-col items-center justify-center p-4 h-auto w-[90px] gap-2 rounded-lg transition-all duration-200 ${
+                            className={`flex flex-col items-center justify-center p-3.5 h-auto w-[81px] gap-1.5 rounded-lg transition-all duration-200 ${
                               selectedIcon === icon.name
                                 ? "bg-primary text-primary-foreground shadow-lg scale-105"
                                 : "hover:bg-muted/60 hover:scale-105"
@@ -318,7 +318,7 @@ export function FileUpload({
                               e.stopPropagation();
                               handleIconSelect(icon.name);
                             }}>
-                            <icon.component size={38} />
+                            <icon.component size={34} />
                             <span className="text-xs font-medium whitespace-nowrap">
                               {icon.name}
                             </span>
@@ -335,7 +335,7 @@ export function FileUpload({
                     height: isDragging ? "auto" : 0,
                   }}
                   transition={{ duration: 0.2 }}>
-                  <p className="text-xl font-medium text-primary">
+                  <p className="text-lg font-medium text-primary">
                     Drop your SVG file here
                   </p>
                 </motion.div>
@@ -345,7 +345,7 @@ export function FileUpload({
             {isDragging && (
               <>
                 <motion.div
-                  className="absolute w-20 h-20 rounded-full bg-primary/20 blur-xl"
+                  className="absolute w-18 h-18 rounded-full bg-primary/20 blur-xl"
                   animate={{
                     x: [0, 30, -30, 0],
                     y: [0, -30, 30, 0],
@@ -359,7 +359,7 @@ export function FileUpload({
                   style={{ top: "20%", left: "20%" }}
                 />
                 <motion.div
-                  className="absolute w-16 h-16 rounded-full bg-primary/20 blur-xl"
+                  className="absolute w-14 h-14 rounded-full bg-primary/20 blur-xl"
                   animate={{
                     x: [0, -40, 40, 0],
                     y: [0, 40, -40, 0],
