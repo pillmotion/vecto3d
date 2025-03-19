@@ -353,44 +353,33 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
     }, [dimensions]);
 
     const getMaterial = (color: string | THREE.Color, isHole: boolean) => {
-      const colorKey =
-        typeof color === "string" ? color : "#" + color.getHexString();
-      const key = `${colorKey}-${isHole}-${roughness}-${metalness}-${clearcoat}-${transmission}-${envMapIntensity}`;
+      const colorString = color instanceof THREE.Color ? `#${color.getHexString()}` : color;
+      const cacheKey = `${colorString}_${roughness}_${metalness}_${clearcoat}_${transmission}_${envMapIntensity}`;
 
-      if (!materialsCache.current.has(key)) {
-        const material = new THREE.MeshPhysicalMaterial({
-          color,
-          side: THREE.DoubleSide,
-          roughness,
-          metalness,
-          clearcoat,
-          clearcoatRoughness: 0.1,
-          transmission,
-          envMapIntensity,
-          reflectivity: 1,
-          ior: transmission > 0.5 ? 1.8 : 1.5,
-          specularIntensity: 1.5,
-          specularColor: 0xffffff,
-          toneMapped: true,
-          shadowSide: THREE.FrontSide,
-          emissiveIntensity: 0.1,
-          emissive: color,
-          opacity: transmission > 0.5 ? 0.9 : 1.0,
-          transparent: transmission > 0.5,
-          thickness: transmission > 0.5 ? depth * 0.5 : 0,
-          flatShading: false,
-          polygonOffset: true,
-          polygonOffsetFactor: isHole ? -2 : 1,
-          polygonOffsetUnits: 1,
-          depthWrite: true,
-        });
-
-        material.userData.isHole = isHole;
-
-        materialsCache.current.set(key, material);
+      if (materialsCache.current.has(cacheKey)) {
+        return materialsCache.current.get(cacheKey)!;
       }
 
-      return materialsCache.current.get(key)!;
+      const threeColor = color instanceof THREE.Color ? color : new THREE.Color(color);
+      const material = new THREE.MeshPhysicalMaterial({
+        color: threeColor,
+        roughness: Math.max(0.05, roughness), 
+        metalness,
+        clearcoat: Math.max(clearcoat, 0.05),
+        clearcoatRoughness: 0.05,
+        reflectivity: 1,
+        envMapIntensity,
+        transmission,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
+        flatShading: false,
+        wireframe: false,
+      });
+
+      materialsCache.current.set(cacheKey, material);
+      return material;
     };
 
     const handleSvgGroupCreated = (group: THREE.Group) => {
@@ -435,12 +424,12 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
     if (shapesWithMaterials.length === 0) return null;
 
     const getExtrudeSettings = (isHole: boolean) => ({
-      depth: isHole ? depth * 1.05 : depth,
+      depth,
       bevelEnabled,
-      bevelThickness,
-      bevelSize,
-      bevelSegments,
-      curveSegments: 12,
+      bevelThickness: isHole ? bevelThickness * 1.05 : bevelThickness,
+      bevelSize: isHole ? bevelSize * 1.05 : bevelSize,
+      bevelSegments: Math.max(4, bevelSegments),
+      curveSegments: Math.max(8, bevelSegments * 2),
     });
 
     return (

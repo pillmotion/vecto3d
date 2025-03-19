@@ -22,17 +22,15 @@ export function GeometryControls({
   autoRotateSpeed,
   setAutoRotateSpeed,
 }: GeometryControlsProps) {
-  // Helper function to convert display rotation value to actual rotation speed
+  
   const displayToActualRotation = (displayValue: number) => {
     return displayValue + 1.5; // Convert 1-5 display scale to 2.5-7.5 actual scale
   };
 
-  // Helper function to convert actual rotation speed to display value
   const actualToDisplayRotation = (actualValue: number) => {
     return actualValue - 1.5; // Convert 2.5-7.5 actual scale to 1-5 display scale
   };
 
-  // Apply bevel preset
   const applyBevelPreset = (presetName: string) => {
     const preset = BEVEL_PRESETS.find((p) => p.name === presetName);
     if (preset) {
@@ -140,7 +138,6 @@ export function GeometryControls({
           ))}
         </div>
 
-        {/* Only show custom sliders if "custom" preset is selected */}
         {bevelEnabled && bevelPreset === "custom" && (
           <>
             <div className="space-y-2 mt-4">

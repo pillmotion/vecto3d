@@ -6,9 +6,7 @@ import { Toaster as SonnerToaster } from "sonner";
 import Script from "next/script";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/react"
-
-
+import { Analytics } from "@vercel/analytics/react";
 
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
@@ -46,10 +44,7 @@ export default function RootLayout({
         property="og:site_name"
         content="Vecto3d | Transform Your Vectors in a New Dimension"
       />
-      <meta
-        property="og:url"
-        content="https://vecto3d.xyz/"
-      />
+      <meta property="og:url" content="https://vecto3d.xyz/" />
       <meta name="twitter:image" content="/twitter-image.png" />
       <meta name="twitter:image:type" content="image/png" />
       <meta name="twitter:image:width" content="1200" />

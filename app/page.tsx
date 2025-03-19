@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 export default function Home() {
   const [svgData, setSvgData] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [selectedIcon, setSelectedIcon] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { isMobile, continueOnMobile, handleContinueOnMobile } =
@@ -33,20 +34,25 @@ export default function Home() {
     setFileName(name);
   };
 
+  const handleIconSelect = (iconName: string) => {
+    setSelectedIcon(iconName);
+  };
+
   const handleContinue = async () => {
     if (svgData) {
       setIsLoading(true);
-      
+
       try {
         localStorage.setItem("svgData", svgData);
         localStorage.setItem("fileName", fileName);
+        localStorage.setItem("selectedIcon", selectedIcon);
 
         if (isMobile) {
           localStorage.setItem("continueOnMobile", "true");
         }
 
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         router.push("/edit");
       } catch (error) {
         console.error("Error during navigation:", error);
@@ -62,7 +68,6 @@ export default function Home() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       exit={{ opacity: 0 }}>
-      
       {/* Loading Overlay */}
       <AnimatePresence>
         {isLoading && (
@@ -76,10 +81,10 @@ export default function Home() {
               className="flex flex-col items-center gap-4"
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
-              transition={{ 
-                type: "spring", 
-                stiffness: 260, 
-                damping: 20 
+              transition={{
+                type: "spring",
+                stiffness: 260,
+                damping: 20,
               }}>
               <Loader2 className="h-12 w-12 text-primary animate-spin" />
               <p className="text-xl font-medium">Preparing your 3D model...</p>
@@ -139,10 +144,10 @@ export default function Home() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ 
-                type: "spring", 
-                stiffness: 300, 
-                damping: 25 
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 25,
               }}>
               <MobileWarning
                 onContinue={handleContinueOnMobile}
@@ -161,13 +166,16 @@ export default function Home() {
                 <FileUpload
                   onFileUpload={handleFileUpload}
                   fileName={fileName}
+                  selectedIcon={selectedIcon}
+                  onIconSelect={handleIconSelect}
                 />
                 <motion.p
                   className="text-base text-center text-muted-foreground mt-4"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}>
-                  *Works best with SVGs having simple geometry and transparent background.
+                  *Works best with SVGs having simple geometry and transparent
+                  background.
                 </motion.p>
               </motion.div>
 
@@ -179,11 +187,11 @@ export default function Home() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 20 }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 500, 
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
                         damping: 25,
-                        mass: 1
+                        mass: 1,
                       }}
                       className="w-full flex justify-center">
                       <RainbowButton
@@ -249,19 +257,17 @@ export default function Home() {
                 </svg>
               </span>
             </Link>
-              <span className="text-muted-foreground">By</span>
-              <Link
-                href="https://lakshb.dev"
-                className="hover:underline font-medium hover:text-primary transition-colors duration-200"
-                target="_blank"
-                rel="noopener noreferrer">
-                lakshaybhushan
-              </Link>
-
+            <span className="text-muted-foreground">By</span>
+            <Link
+              href="https://lakshb.dev"
+              className="hover:underline font-medium hover:text-primary transition-colors duration-200"
+              target="_blank"
+              rel="noopener noreferrer">
+              lakshaybhushan
+            </Link>
           </div>
         </div>
       </motion.footer>
     </motion.main>
-
   );
 }

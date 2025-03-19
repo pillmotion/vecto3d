@@ -101,6 +101,8 @@ export interface ModelPreviewProps {
 export interface FileUploadProps {
   onFileUpload: (svgData: string, fileName: string) => void;
   fileName: string;
+  selectedIcon?: string;
+  onIconSelect?: (iconName: string) => void;
 }
 
 // Props for geometry controls component

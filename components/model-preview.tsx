@@ -1,13 +1,14 @@
 import React, { useRef, useEffect, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, extend } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import {
   EffectComposer,
   Bloom,
   BrightnessContrast,
   SMAA,
+  ToneMapping,
 } from "@react-three/postprocessing";
-import { BlendFunction } from "postprocessing";
+import { BlendFunction, SMAAPreset } from "postprocessing";
 import * as THREE from "three";
 import { SVGModel } from "./svg-model";
 import { ModelPreviewProps } from "@/lib/types";
@@ -49,8 +50,8 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
         50,
         window.innerWidth / window.innerHeight,
         1,
-        1000,
-      ),
+        1000
+      )
     );
 
     useEffect(() => {
@@ -70,7 +71,8 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
     const effects = useMemo(() => {
       if (useBloom) {
         return (
-          <EffectComposer multisampling={isMobile ? 0 : 4}>
+          <EffectComposer multisampling={isMobile ? 0 : 8}>
+            <SMAA />
             <Bloom
               intensity={bloomIntensity * 0.7}
               luminanceThreshold={0.4}
@@ -83,16 +85,31 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
               contrast={0.05}
               blendFunction={BlendFunction.NORMAL}
             />
+            <ToneMapping
+              adaptive
+              resolution={256}
+              middleGrey={0.6}
+              maxLuminance={16.0}
+              averageLuminance={1.0}
+              adaptationRate={1.0}
+            />
           </EffectComposer>
         );
-      } else if (!isMobile) {
+      } else {
         return (
-          <EffectComposer multisampling={0}>
-            <SMAA preserveEdges />
+          <EffectComposer multisampling={isMobile ? 2 : 8}>
+            <SMAA preset={isMobile ? 1 : 3} />
+            <ToneMapping
+              adaptive
+              resolution={256}
+              middleGrey={0.6}
+              maxLuminance={16.0}
+              averageLuminance={1.0}
+              adaptationRate={1.0}
+            />
           </EffectComposer>
         );
       }
-      return null;
     }, [useBloom, bloomIntensity, bloomMipmapBlur, isMobile]);
 
     const environment = useMemo(() => {
@@ -112,7 +129,7 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
       <Canvas
         shadows
         camera={{ position: [0, 0, 150], fov: 50 }}
-        dpr={window?.devicePixelRatio || 1.5}
+        dpr={[1, 2]}
         frameloop="demand"
         performance={{ min: 0.5 }}
         gl={{
@@ -123,7 +140,7 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
           preserveDrawingBuffer: true,
           powerPreference: "high-performance",
           alpha: true,
-          logarithmicDepthBuffer: false,
+          logarithmicDepthBuffer: true,
           precision: isMobile ? "mediump" : "highp",
           stencil: false,
         }}>
@@ -169,7 +186,7 @@ const ModelPreviews = React.memo<ModelPreviewProps>(
         />
       </Canvas>
     );
-  },
+  }
 );
 
 ModelPreviews.displayName = "ModelPreviews";

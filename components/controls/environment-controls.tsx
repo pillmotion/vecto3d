@@ -37,7 +37,6 @@ export function EnvironmentControls({
 }: EnvironmentControlsProps) {
   const hdriFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Automatically disable Vibe Mode when Environment Lighting is disabled
   useEffect(() => {
     if (!useEnvironment && useBloom) {
       toggleVibeMode(false);
@@ -52,7 +51,6 @@ export function EnvironmentControls({
       return;
     }
 
-    // Check if the file type is supported
     const fileType = file.type.toLowerCase();
     const isJpg = fileType === "image/jpeg" || fileType === "image/jpg";
     const isPng = fileType === "image/png";
@@ -62,7 +60,6 @@ export function EnvironmentControls({
       return;
     }
 
-    // Check file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error("File too large: Image must be smaller than 10MB");
       return;
@@ -92,7 +89,6 @@ export function EnvironmentControls({
       toast.error("Failed to read the image file");
     }
 
-    // Clear the input value to allow selecting the same file again
     e.target.value = "";
   };
 
@@ -138,7 +134,6 @@ export function EnvironmentControls({
             </Select>
           </div>
 
-          {/* Visual Indicators for Environment Presets */}
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 my-3">
             {ENVIRONMENT_PRESETS.map((preset) => (
               <div
@@ -162,7 +157,6 @@ export function EnvironmentControls({
               </div>
             ))}
 
-            {/* Custom upload option in the grid */}
             <div
               className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
                 environmentPreset === "custom"
@@ -231,7 +225,6 @@ export function EnvironmentControls({
         </>
       )}
 
-      {/* Vibe Mode with button instead of checkbox - disabled for custom images */}
       {useEnvironment && (
         <div className="space-y-4 pt-4 mt-4 border-t">
           <div className="w-full">
@@ -309,7 +302,6 @@ export function EnvironmentControls({
                 </Label>
               </div>
 
-              {/* Model Rotation Control moved inside Vibe Mode */}
               <div className="space-y-2 pt-3 border-t border-primary/10">
                 <Label htmlFor="modelRotation" className="flex justify-between">
                   <span>Model Rotation</span>
