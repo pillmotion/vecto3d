@@ -197,10 +197,10 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       onLoadStart?.();
 
       try {
-        let processedSvgData = svgData;
-        if (svgData.includes("™")) {
-          processedSvgData = svgData.replace(/™/g, "&#8482;");
-        }
+        // Remove special characters and symbols
+        let processedSvgData = svgData
+          .replace(/[™®©]/g, '') // Remove trademark, registered, and copyright symbols
+          .replace(/&trade;|&reg;|&copy;/g, ''); // Remove HTML entities
 
         const parser = new DOMParser();
         const svgDoc = parser.parseFromString(
@@ -219,21 +219,13 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
           throw new Error("Invalid SVG: No SVG element found");
         }
 
+        // Remove text elements containing special characters
         const textElements = svgDoc.querySelectorAll("text");
         if (textElements.length > 0) {
           textElements.forEach((textEl) => {
-            const tspan = textEl.querySelector("tspan");
-            if (tspan && tspan.textContent === "™") {
-              const pathEl = svgDoc.createElementNS(
-                "http://www.w3.org/2000/svg",
-                "path"
-              );
-              pathEl.setAttribute("d", "M0,0 M1,1 L2,1 L2,2 L1,2 Z");
-              pathEl.setAttribute(
-                "fill",
-                textEl.getAttribute("fill") || "#fff"
-              );
-              textEl.parentNode?.replaceChild(pathEl, textEl);
+            const text = textEl.textContent || '';
+            if (/[™®©]|&trade;|&reg;|&copy;/.test(text)) {
+              textEl.parentNode?.removeChild(textEl);
             }
           });
         }
