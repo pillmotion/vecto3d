@@ -57,7 +57,7 @@ const getPathBoundingArea = (path: THREE.ShapePath) => {
 const applySpread = (
   shape: THREE.Shape,
   isHole: boolean,
-  amount: number,
+  amount: number
 ): THREE.Shape => {
   if (amount === 0) return shape;
 
@@ -105,7 +105,7 @@ const applySpread = (
 
 const isPathInsideAnother = (
   innerPath: THREE.ShapePath,
-  outerPath: THREE.ShapePath,
+  outerPath: THREE.ShapePath
 ) => {
   const innerPoints = innerPath.subPaths.flatMap((sp) => sp.getPoints());
   if (innerPoints.length === 0) return false;
@@ -126,7 +126,7 @@ const isPathInsideAnother = (
 
   return innerPoints.every(
     (p) =>
-      p.x > outerMinX && p.x < outerMaxX && p.y > outerMinY && p.y < outerMaxY,
+      p.x > outerMinX && p.x < outerMaxX && p.y > outerMinY && p.y < outerMaxY
   );
 };
 
@@ -162,9 +162,9 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       spread = 0,
       onLoadStart,
       onLoadComplete,
-      onError
+      onError,
     },
-    ref,
+    ref
   ) => {
     const [paths, setPaths] = useState<THREE.ShapePath[]>([]);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -177,25 +177,75 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
     useEffect(() => {
       if (!svgData) return;
 
-      const svgHash = btoa(svgData).slice(0, 20);
+      const safeHash = (input: string) => {
+        try {
+          let hash = 0;
+          for (let i = 0; i < input.length; i++) {
+            const char = input.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash;
+          }
+          return Math.abs(hash).toString(16).slice(0, 20);
+        } catch (e) {
+          console.warn("Hash generation fallback used");
+          return Date.now().toString(16);
+        }
+      };
+
+      const svgHash = safeHash(svgData);
 
       onLoadStart?.();
 
       try {
+        let processedSvgData = svgData;
+        if (svgData.includes("™")) {
+          processedSvgData = svgData.replace(/™/g, "&#8482;");
+        }
+
         const parser = new DOMParser();
-        const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
+        const svgDoc = parser.parseFromString(
+          processedSvgData,
+          "image/svg+xml"
+        );
+
+        const parserError = svgDoc.querySelector("parsererror");
+        if (parserError) {
+          throw new Error("SVG parse error: " + parserError.textContent);
+        }
+
         const svgElement = svgDoc.querySelector("svg");
 
         if (!svgElement) {
           throw new Error("Invalid SVG: No SVG element found");
         }
 
+        const textElements = svgDoc.querySelectorAll("text");
+        if (textElements.length > 0) {
+          textElements.forEach((textEl) => {
+            const tspan = textEl.querySelector("tspan");
+            if (tspan && tspan.textContent === "™") {
+              const pathEl = svgDoc.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "path"
+              );
+              pathEl.setAttribute("d", "M0,0 M1,1 L2,1 L2,2 L1,2 Z");
+              pathEl.setAttribute(
+                "fill",
+                textEl.getAttribute("fill") || "#fff"
+              );
+              textEl.parentNode?.replaceChild(pathEl, textEl);
+            }
+          });
+        }
+
+        const svgString = new XMLSerializer().serializeToString(svgDoc);
+
         const viewBox = svgElement.getAttribute("viewBox");
         let width = Number.parseFloat(
-          svgElement.getAttribute("width") || "100",
+          svgElement.getAttribute("width") || "100"
         );
         let height = Number.parseFloat(
-          svgElement.getAttribute("height") || "100",
+          svgElement.getAttribute("height") || "100"
         );
 
         if (viewBox) {
@@ -209,22 +259,18 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
         setDimensions({ width, height });
 
         const loader = new SVGLoader();
-        const svgData2 = loader.parse(svgData);
-        
-        const sortedPaths = [...svgData2.paths].sort((a, b) => {
-          const areaA = getPathBoundingArea(a);
-          const areaB = getPathBoundingArea(b);
-          return areaB - areaA;
-        });
-        
-        setPaths(sortedPaths);
+        const svgData2 = loader.parse(svgString);
+
+        setPaths(svgData2.paths);
 
         setTimeout(() => {
           onLoadComplete?.();
         }, 300);
       } catch (error) {
         console.error("Error parsing SVG:", error);
-        onError?.(error instanceof Error ? error : new Error("Failed to parse SVG"));
+        onError?.(
+          error instanceof Error ? error : new Error("Failed to parse SVG")
+        );
       }
 
       return () => {
@@ -235,117 +281,38 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
     const shapesWithMaterials = useMemo(() => {
       if (paths.length === 0) return [];
 
-      if (isHollowSvg || paths.length > 1) {
-        try {
-          const outerPaths: THREE.ShapePath[] = [];
-          const innerPaths: THREE.ShapePath[] = [];
-
-          paths.forEach((path) => {
-            if (isClosedPath(path)) {
-              let isInner = false;
-
-              for (const otherPath of paths) {
-                if (
-                  path !== otherPath &&
-                  isPathInsideAnother(path, otherPath)
-                ) {
-                  isInner = true;
-                  break;
-                }
-              }
-
-              if (isInner) {
-                innerPaths.push(path);
-              } else {
-                outerPaths.push(path);
-              }
-            } else {
-              outerPaths.push(path);
-            }
-          });
-
-          const result = [];
-          const processedInnerPaths = new Set();
-
-          for (const outerPath of outerPaths) {
-            try {
-              const shapes = SVGLoader.createShapes(outerPath);
-              const pathColor = customColor || outerPath.color;
-
-              const processedShapes = shapes.map((shape) =>
-                applySpread(shape, false, spread),
-              );
-
-              result.push({
-                shapes: processedShapes,
-                color: pathColor,
-                renderOrder: 0,
-                isHole: false,
-              });
-
-              innerPaths.forEach((innerPath) => {
-                if (isPathInsideAnother(innerPath, outerPath)) {
-                  processedInnerPaths.add(innerPath);
-                }
-              });
-            } catch (error) {
-              console.warn("Error creating shapes from outer path:", error);
-            }
-          }
-
-          for (const innerPath of innerPaths) {
-            if (!processedInnerPaths.has(innerPath)) {
-              try {
-                const shapes = SVGLoader.createShapes(innerPath);
-                const processedShapes = shapes.map((shape) =>
-                  applySpread(shape, true, spread),
-                );
-
-                result.push({
-                  shapes: processedShapes,
-                  color: customColor || innerPath.color,
-                  renderOrder: 1,
-                  isHole: true,
-                });
-              } catch (error) {
-                console.warn("Error creating shapes from inner path:", error);
-              }
-            }
-          }
-
-          return result;
-        } catch (error) {
-          console.warn("Error with advanced shape processing:", error);
-        }
-      }
-
       return paths
-        .map((path) => {
+        .map((path, index) => {
           try {
             const shapes = SVGLoader.createShapes(path);
 
+            if (shapes.length === 0) {
+              console.warn("No shapes created from path", index);
+              return null;
+            }
+
             const processedShapes = shapes.map((shape) =>
-              applySpread(shape, false, spread),
+              applySpread(shape, false, spread)
             );
 
             return {
               shapes: processedShapes,
               color: customColor || path.color,
-              renderOrder: 0,
+              renderOrder: index,
               isHole: false,
             };
           } catch (error) {
-            console.warn("Error in fallback shape creation:", error);
-            return {
-              shapes: [],
-              color: customColor || path.color,
-              renderOrder: 0,
-              isHole: false,
-            };
+            console.warn("Error creating shapes from path:", error);
+            return null;
           }
         })
-        .filter((item) => item.shapes.length > 0);
-    }, [paths, customColor, isHollowSvg, spread]);
+        .filter(Boolean) as Array<{
+        shapes: THREE.Shape[];
+        color: string | THREE.Color;
+        renderOrder: number;
+        isHole: boolean;
+      }>;
+    }, [paths, customColor, spread]);
 
     const scale = useMemo(() => {
       if (dimensions.width === 0 || dimensions.height === 0) return 1;
@@ -353,17 +320,19 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
     }, [dimensions]);
 
     const getMaterial = (color: string | THREE.Color, isHole: boolean) => {
-      const colorString = color instanceof THREE.Color ? `#${color.getHexString()}` : color;
+      const colorString =
+        color instanceof THREE.Color ? `#${color.getHexString()}` : color;
       const cacheKey = `${colorString}_${roughness}_${metalness}_${clearcoat}_${transmission}_${envMapIntensity}`;
 
       if (materialsCache.current.has(cacheKey)) {
         return materialsCache.current.get(cacheKey)!;
       }
 
-      const threeColor = color instanceof THREE.Color ? color : new THREE.Color(color);
+      const threeColor =
+        color instanceof THREE.Color ? color : new THREE.Color(color);
       const material = new THREE.MeshPhysicalMaterial({
         color: threeColor,
-        roughness: Math.max(0.05, roughness), 
+        roughness: Math.max(0.05, roughness),
         metalness,
         clearcoat: Math.max(clearcoat, 0.05),
         clearcoatRoughness: 0.05,
@@ -372,24 +341,14 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
         transmission,
         side: THREE.DoubleSide,
         polygonOffset: true,
-        polygonOffsetFactor: 1,
-        polygonOffsetUnits: 1,
+        polygonOffsetFactor: isHole ? -1 : 1,
+        polygonOffsetUnits: isHole ? -1 : 1,
         flatShading: false,
         wireframe: false,
       });
 
       materialsCache.current.set(cacheKey, material);
       return material;
-    };
-
-    const handleSvgGroupCreated = (group: THREE.Group) => {
-      try {
-        
-        onLoadComplete?.();
-      } catch (error) {
-        console.error("Error processing SVG:", error);
-        onError?.(error instanceof Error ? error : new Error('Error processing SVG'));
-      }
     };
 
     useEffect(() => {
@@ -432,6 +391,24 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
       curveSegments: Math.max(8, bevelSegments * 2),
     });
 
+    const box = new THREE.Box3();
+    const tempGroup = new THREE.Group();
+
+    shapesWithMaterials.forEach((shapeItem) => {
+      shapeItem.shapes.forEach((shape) => {
+        const geometry = new THREE.ShapeGeometry(shape);
+        const mesh = new THREE.Mesh(geometry);
+        tempGroup.add(mesh);
+      });
+    });
+
+    box.setFromObject(tempGroup);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const xOffset = size.x / -2;
+    const yOffset = size.y / -2;
+
     return (
       <Center>
         <group
@@ -447,7 +424,11 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
                   castShadow={castShadow}
                   receiveShadow={receiveShadow}
                   renderOrder={shapeItem.renderOrder}
-                  position={[0, 0, shapeItem.isHole ? 0 : -depth / 2]}>
+                  position={[
+                    xOffset,
+                    yOffset,
+                    shapeItem.isHole ? -depth / 4 : -depth / 2,
+                  ]}>
                   <extrudeGeometry
                     args={[shape, getExtrudeSettings(shapeItem.isHole)]}
                   />
@@ -462,7 +443,7 @@ export const SVGModel = forwardRef<THREE.Group, SVGModelProps>(
         </group>
       </Center>
     );
-  },
+  }
 );
 
 SVGModel.displayName = "SVGModel";

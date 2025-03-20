@@ -11,12 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon, PartyPopper } from "lucide-react";
+import { InfoIcon } from "lucide-react";
 import { EnvironmentControlsProps } from "@/lib/types";
 import { ENVIRONMENT_PRESETS } from "@/lib/constants";
 import { toast } from "sonner";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { motion } from "framer-motion";
+import { BsStars } from "react-icons/bs";
 
 export function EnvironmentControls({
   useEnvironment,
@@ -246,7 +247,7 @@ export function EnvironmentControls({
                   toggleVibeMode(newValue);
                 }}>
                 {useBloom ? "Disable Vibe Mode" : "Enable Vibe Mode"}
-                <PartyPopper className="w-4 h-4 ml-2" />
+                <BsStars className="w-4 h-4 ml-2"/>
               </RainbowButton>
             )}
           </div>
