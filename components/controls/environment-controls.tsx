@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { motion } from "framer-motion";
 import { BsStars } from "react-icons/bs";
+import { useI18n } from "@/locales/client";
 
 export function EnvironmentControls({
   useEnvironment,
@@ -37,6 +38,7 @@ export function EnvironmentControls({
   toggleVibeMode,
 }: EnvironmentControlsProps) {
   const hdriFileInputRef = useRef<HTMLInputElement>(null);
+  const t = useI18n();
 
   useEffect(() => {
     if (!useEnvironment && useBloom) {
@@ -48,7 +50,7 @@ export function EnvironmentControls({
     const file = e.target.files?.[0];
 
     if (!file) {
-      toast.error("No file selected");
+      toast.error(t('edit.environmentControls.errors.noFile'));
       return;
     }
 
@@ -57,12 +59,12 @@ export function EnvironmentControls({
     const isPng = fileType === "image/png";
 
     if (!isJpg && !isPng) {
-      toast.error("Unsupported file format: Only JPG and PNG are supported");
+      toast.error(t('edit.environmentControls.errors.unsupportedFormat'));
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error("File too large: Image must be smaller than 10MB");
+      toast.error(t('edit.environmentControls.errors.fileTooLarge'));
       return;
     }
 
@@ -73,21 +75,21 @@ export function EnvironmentControls({
         if (event.target?.result) {
           setCustomHdriUrl(event.target.result as string);
           setEnvironmentPreset("custom");
-          toast.success("Image uploaded successfully");
+          toast.success(t('edit.environmentControls.success.imageUploaded'));
         } else {
-          toast.error("Failed to process image");
+          toast.error(t('edit.environmentControls.errors.processingFailed'));
         }
       };
 
       reader.onerror = (error) => {
         console.error("FileReader error:", error);
-        toast.error("Failed to read the image file");
+        toast.error(t('edit.environmentControls.errors.readFailed'));
       };
 
       reader.readAsDataURL(file);
     } catch (error) {
       console.error("File reading error:", error);
-      toast.error("Failed to read the image file");
+      toast.error(t('edit.environmentControls.errors.readFailed'));
     }
 
     e.target.value = "";
@@ -98,8 +100,7 @@ export function EnvironmentControls({
       <Alert className="bg-muted/50 mb-4">
         <AlertDescription className="text-xs flex items-center">
           <InfoIcon className="h-4 w-4 mr-2" />
-          Environment settings are for preview only and will not affect the
-          exported 3D model.
+          {t('edit.environmentControls.notice.previewOnly')}
         </AlertDescription>
       </Alert>
 
@@ -109,27 +110,35 @@ export function EnvironmentControls({
           checked={useEnvironment}
           onCheckedChange={(checked) => setUseEnvironment(checked as boolean)}
         />
-        <Label htmlFor="useEnvironment">Use Environment Lighting</Label>
+        <Label htmlFor="useEnvironment">{t('edit.environmentControls.useEnvironment')}</Label>
       </div>
 
       {useEnvironment && (
         <>
           <div className="space-y-2">
-            <Label htmlFor="environmentPreset">Environment Preset</Label>
+            <Label htmlFor="environmentPreset">{t('edit.environmentControls.presets.title')}</Label>
             <Select
               value={environmentPreset}
               onValueChange={setEnvironmentPreset}>
               <SelectTrigger>
-                <SelectValue placeholder="Select environment" />
+                <SelectValue placeholder={t('edit.environmentControls.presets.select')} />
               </SelectTrigger>
               <SelectContent>
                 {ENVIRONMENT_PRESETS.map((preset) => (
                   <SelectItem key={preset.name} value={preset.name}>
-                    {preset.label}
+                    {preset.name === "apartment" && t('edit.environmentControls.presets.apartment')}
+                    {preset.name === "city" && t('edit.environmentControls.presets.city')}
+                    {preset.name === "dawn" && t('edit.environmentControls.presets.dawn')}
+                    {preset.name === "forest" && t('edit.environmentControls.presets.forest')}
+                    {preset.name === "lobby" && t('edit.environmentControls.presets.lobby')}
+                    {preset.name === "park" && t('edit.environmentControls.presets.park')}
+                    {preset.name === "studio" && t('edit.environmentControls.presets.studio')}
+                    {preset.name === "sunset" && t('edit.environmentControls.presets.sunset')}
+                    {preset.name === "warehouse" && t('edit.environmentControls.presets.warehouse')}
                   </SelectItem>
                 ))}
                 {customHdriUrl && (
-                  <SelectItem value="custom">Custom Image</SelectItem>
+                  <SelectItem value="custom">{t('edit.environmentControls.presets.custom')}</SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -139,11 +148,10 @@ export function EnvironmentControls({
             {ENVIRONMENT_PRESETS.map((preset) => (
               <div
                 key={preset.name}
-                className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                  environmentPreset === preset.name
+                className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${environmentPreset === preset.name
                     ? "bg-primary/20 ring-1 ring-primary"
                     : "hover:bg-muted"
-                }`}
+                  }`}
                 onClick={() => setEnvironmentPreset(preset.name)}>
                 <div
                   className="w-12 h-12 rounded-full mb-1 overflow-hidden"
@@ -153,17 +161,24 @@ export function EnvironmentControls({
                   }}
                 />
                 <span className="text-xs font-medium text-center">
-                  {preset.label.split(" ")[0]}
+                  {preset.name === "apartment" && t('edit.environmentControls.presets.apartment').split(" ")[0]}
+                  {preset.name === "city" && t('edit.environmentControls.presets.city').split(" ")[0]}
+                  {preset.name === "dawn" && t('edit.environmentControls.presets.dawn').split(" ")[0]}
+                  {preset.name === "forest" && t('edit.environmentControls.presets.forest').split(" ")[0]}
+                  {preset.name === "lobby" && t('edit.environmentControls.presets.lobby').split(" ")[0]}
+                  {preset.name === "park" && t('edit.environmentControls.presets.park').split(" ")[0]}
+                  {preset.name === "studio" && t('edit.environmentControls.presets.studio').split(" ")[0]}
+                  {preset.name === "sunset" && t('edit.environmentControls.presets.sunset').split(" ")[0]}
+                  {preset.name === "warehouse" && t('edit.environmentControls.presets.warehouse').split(" ")[0]}
                 </span>
               </div>
             ))}
 
             <div
-              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                environmentPreset === "custom"
+              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${environmentPreset === "custom"
                   ? "bg-primary/20 ring-1 ring-primary"
                   : "hover:bg-muted"
-              }`}
+                }`}
               onClick={() => {
                 if (customHdriUrl) {
                   setEnvironmentPreset("custom");
@@ -189,7 +204,7 @@ export function EnvironmentControls({
                       backgroundPosition: "center",
                     }}
                   />
-                  <span className="text-xs font-medium">Custom</span>
+                  <span className="text-xs font-medium">{t('edit.environmentControls.presets.custom')}</span>
                 </>
               ) : (
                 <>
@@ -198,7 +213,7 @@ export function EnvironmentControls({
                       +
                     </span>
                   </div>
-                  <span className="text-xs font-medium">Custom</span>
+                  <span className="text-xs font-medium">{t('edit.environmentControls.presets.custom')}</span>
                 </>
               )}
             </div>
@@ -210,14 +225,14 @@ export function EnvironmentControls({
                 <InfoIcon className="h-4 w-4 text-muted-foreground mr-2 mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">
-                    Your image will be used for reflections in the 3D model
+                    {t('edit.environmentControls.customImage.info')}
                   </p>
                   <Button
                     variant="outline"
                     size="sm"
                     className="mt-2 text-xs h-7"
                     onClick={() => hdriFileInputRef.current?.click()}>
-                    Change Image
+                    {t('edit.environmentControls.customImage.change')}
                   </Button>
                 </div>
               </div>
@@ -235,19 +250,18 @@ export function EnvironmentControls({
                 size="lg"
                 disabled={true}
                 className="w-full opacity-50 cursor-not-allowed">
-                Vibe Mode Not Available with Custom Images
+                {t('edit.environmentControls.vibeMode.notAvailable')}
               </Button>
             ) : (
               <RainbowButton
-                className={`w-full py-4 text-base font-semibold transition-all ${
-                  useBloom ? "animate-rainbow" : "opacity-90 hover:opacity-100"
-                }`}
+                className={`w-full py-4 text-base font-semibold transition-all ${useBloom ? "animate-rainbow" : "opacity-90 hover:opacity-100"
+                  }`}
                 onClick={() => {
                   const newValue = !useBloom;
                   toggleVibeMode(newValue);
                 }}>
-                {useBloom ? "Disable Vibe Mode" : "Enable Vibe Mode"}
-                <BsStars className="w-4 h-4 ml-2"/>
+                {useBloom ? t('edit.environmentControls.vibeMode.disable') : t('edit.environmentControls.vibeMode.enable')}
+                <BsStars className="w-4 h-4 ml-2" />
               </RainbowButton>
             )}
           </div>
@@ -256,7 +270,7 @@ export function EnvironmentControls({
             <Alert variant="destructive" className="mt-2 py-2">
               <AlertDescription className="text-xs flex items-center">
                 <InfoIcon className="h-3 w-3 mr-1" />
-                Vibe Mode is not available with custom images
+                {t('edit.environmentControls.vibeMode.customNotSupported')}
               </AlertDescription>
             </Alert>
           )}
@@ -272,7 +286,7 @@ export function EnvironmentControls({
                 <Label
                   htmlFor="bloomIntensity"
                   className="flex justify-between">
-                  <span>Glow Intensity</span>
+                  <span>{t('edit.environmentControls.vibeMode.glowIntensity')}</span>
                   <span className="text-primary font-mono">
                     {bloomIntensity.toFixed(1)}
                   </span>
@@ -299,13 +313,13 @@ export function EnvironmentControls({
                   }}
                 />
                 <Label htmlFor="bloomMipmapBlur" className="font-medium">
-                  Soft Glow
+                  {t('edit.environmentControls.vibeMode.softGlow')}
                 </Label>
               </div>
 
               <div className="space-y-2 pt-3 border-t border-primary/10">
                 <Label htmlFor="modelRotation" className="flex justify-between">
-                  <span>Model Rotation</span>
+                  <span>{t('edit.environmentControls.vibeMode.modelRotation')}</span>
                   <span className="text-primary font-mono">
                     {(modelRotationY * (180 / Math.PI)).toFixed(0)}°
                   </span>

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { MaterialControlsProps } from "@/lib/types";
 import { MATERIAL_PRESETS } from "@/lib/constants";
+import { useI18n } from "@/locales/client";
 
 export function MaterialControls({
   materialPreset,
@@ -29,10 +30,12 @@ export function MaterialControls({
   customColor,
   setCustomColor,
 }: MaterialControlsProps) {
+  const t = useI18n();
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="materialPreset">Material Type</Label>
+        <Label htmlFor="materialPreset">{t('edit.materialControls.presets.title')}</Label>
         <Select
           value={materialPreset}
           onValueChange={(value) => {
@@ -48,12 +51,16 @@ export function MaterialControls({
             }
           }}>
           <SelectTrigger>
-            <SelectValue placeholder="Select material type" />
+            <SelectValue placeholder={t('edit.materialControls.presets.select')} />
           </SelectTrigger>
           <SelectContent>
             {MATERIAL_PRESETS.map((preset) => (
               <SelectItem key={preset.name} value={preset.name}>
-                {preset.label}
+                {preset.name === "metallic" && t('edit.materialControls.presets.metallic')}
+                {preset.name === "clay" && t('edit.materialControls.presets.clayMatte')}
+                {preset.name === "plastic" && t('edit.materialControls.presets.plastic')}
+                {preset.name === "glass" && t('edit.materialControls.presets.glass')}
+                {preset.name === "custom" && t('edit.materialControls.presets.custom')}
               </SelectItem>
             ))}
           </SelectContent>
@@ -64,11 +71,10 @@ export function MaterialControls({
         {MATERIAL_PRESETS.map((preset) => (
           <div
             key={preset.name}
-            className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-              materialPreset === preset.name
-                ? "bg-primary/20 ring-1 ring-primary"
-                : "hover:bg-muted"
-            }`}
+            className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${materialPreset === preset.name
+              ? "bg-primary/20 ring-1 ring-primary"
+              : "hover:bg-muted"
+              }`}
             onClick={() => {
               setMaterialPreset(preset.name);
               setRoughness(preset.roughness);
@@ -90,7 +96,13 @@ export function MaterialControls({
                 opacity: preset.transmission > 0 ? 0.7 : 1,
               }}
             />
-            <span className="text-xs font-medium">{preset.label}</span>
+            <span className="text-xs font-medium">
+              {preset.name === "metallic" && t('edit.materialControls.presets.metallic')}
+              {preset.name === "clay" && t('edit.materialControls.presets.clayMatte')}
+              {preset.name === "plastic" && t('edit.materialControls.presets.plastic')}
+              {preset.name === "glass" && t('edit.materialControls.presets.glass')}
+              {preset.name === "custom" && t('edit.materialControls.presets.custom')}
+            </span>
           </div>
         ))}
       </div>
@@ -101,12 +113,12 @@ export function MaterialControls({
           checked={useCustomColor}
           onCheckedChange={(checked) => setUseCustomColor(checked as boolean)}
         />
-        <Label htmlFor="useCustomColor">Override SVG colors</Label>
+        <Label htmlFor="useCustomColor">{t('edit.materialControls.customColor.enable')}</Label>
       </div>
 
       {useCustomColor && (
         <div className="space-y-2">
-          <Label htmlFor="colorPicker">Custom Color</Label>
+          <Label htmlFor="colorPicker">{t('edit.materialControls.customColor.color')}</Label>
           <div className="flex items-center space-x-2">
             <input
               type="color"
@@ -128,7 +140,7 @@ export function MaterialControls({
       {materialPreset === "custom" && (
         <>
           <div className="space-y-2">
-            <Label htmlFor="roughness">Roughness: {roughness.toFixed(2)}</Label>
+            <Label htmlFor="roughness">{t('edit.materialControls.properties.roughness')}: {roughness.toFixed(2)}</Label>
             <Slider
               id="roughness"
               min={0}
@@ -140,7 +152,7 @@ export function MaterialControls({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="metalness">Metalness: {metalness.toFixed(2)}</Label>
+            <Label htmlFor="metalness">{t('edit.materialControls.properties.metalness')}: {metalness.toFixed(2)}</Label>
             <Slider
               id="metalness"
               min={0}
@@ -152,7 +164,7 @@ export function MaterialControls({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clearcoat">Clearcoat: {clearcoat.toFixed(2)}</Label>
+            <Label htmlFor="clearcoat">{t('edit.materialControls.properties.clearcoat')}: {clearcoat.toFixed(2)}</Label>
             <Slider
               id="clearcoat"
               min={0}
@@ -165,7 +177,7 @@ export function MaterialControls({
 
           <div className="space-y-2">
             <Label htmlFor="transmission">
-              Transmission: {transmission.toFixed(2)}
+              {t('edit.materialControls.properties.transmission')}: {transmission.toFixed(2)}
             </Label>
             <Slider
               id="transmission"
@@ -179,7 +191,7 @@ export function MaterialControls({
 
           <div className="space-y-2">
             <Label htmlFor="envMapIntensity">
-              Environment Reflection: {envMapIntensity.toFixed(1)}
+              {t('edit.materialControls.properties.envMapIntensity')}: {envMapIntensity.toFixed(1)}
             </Label>
             <Slider
               id="envMapIntensity"

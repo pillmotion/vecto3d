@@ -9,6 +9,7 @@ import { MobileWarning } from "@/components/mobile-warning";
 import { useMobileDetection } from "@/hooks/use-mobile-detection";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { ModeToggle } from "@/components/ui/theme-toggle";
+import { LanguageToggle } from "@/components/ui/language-toggle";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaGithub } from "react-icons/fa";
 import { IoLogoVercel } from "react-icons/io5";
@@ -19,8 +20,10 @@ import {
   logoAnimation,
 } from "@/lib/animation-values";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/locales/client";
 
 export default function Home() {
+  const t = useI18n();
   const [svgData, setSvgData] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [selectedIcon, setSelectedIcon] = useState<string>("");
@@ -107,7 +110,7 @@ export default function Home() {
                 damping: 20,
               }}>
               <Loader2 className="h-12 w-12 text-primary animate-spin" />
-              <p className="text-xl font-medium">Preparing your 3D model...</p>
+              <p className="text-xl font-medium">{t('home.loading')}</p>
             </motion.div>
           </motion.div>
         )}
@@ -130,15 +133,7 @@ export default function Home() {
 
         <div className="flex items-center space-x-3">
           <ModeToggle />
-          <Link
-            href="https://github.com/lakshaybhushan/vecto3d"
-            target="_blank"
-            rel="noopener noreferrer">
-            <Button>
-              <FaGithub size={16} />
-              <span className="hidden sm:inline">Star it on GitHub</span>
-            </Button>
-          </Link>
+          <LanguageToggle />
         </div>
       </motion.header>
 
@@ -152,8 +147,8 @@ export default function Home() {
           <motion.h1
             className="font-serif text-4xl md:text-5xl lg:text-7xl tracking-tight leading-tight md:leading-tight"
             variants={fadeUp}>
-            Transform Your Vectors <br className="hidden sm:block" />
-            <span className="text-primary">in a New Dimension</span>
+            {t('home.title').split(" ").slice(0, -3).join(" ")} <br className="hidden sm:block" />
+            <span className="text-primary">{t('home.title').split(" ").slice(-3).join(" ")}</span>
           </motion.h1>
         </motion.div>
 
@@ -171,7 +166,7 @@ export default function Home() {
               }}>
               <MobileWarning
                 onContinue={handleContinueOnMobile}
-                onReturn={() => {}}
+                onReturn={() => { }}
               />
             </motion.div>
           ) : (
@@ -194,8 +189,7 @@ export default function Home() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}>
-                  *Works best with SVGs having simple geometry and transparent
-                  background.
+                  {t('home.uploadSection.bestWith')}
                 </motion.p>
               </motion.div>
 
@@ -224,11 +218,11 @@ export default function Home() {
                           {isLoading ? (
                             <>
                               <Loader2 size={16} className="animate-spin" />
-                              Processing...
+                              {t('home.uploadSection.processing')}
                             </>
                           ) : (
                             <>
-                              Continue to Editor <ArrowRight size={16} />
+                              {t('home.uploadSection.continueButton')} <ArrowRight size={16} />
                             </>
                           )}
                         </span>
@@ -249,8 +243,8 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}>
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            Hosted on{" "}
+          <div className="flex items-center gap-2 mb-2 md:mb-0">
+            {t('home.footer.hostedOn')}{" "}
             <Link
               href="https://vercel.com"
               className="font-medium text-primary hover:underline flex items-center gap-0.5 transition-colors duration-200"
@@ -260,33 +254,53 @@ export default function Home() {
               <span className="hidden sm:inline">Vercel</span>
             </Link>
           </div>
-          <div className="flex items-center gap-1.5">
-            Ideated with{" "}
-            <Link
-              href="https://v0.dev/chat/three-js-logo-converter-JEQ692TQD4t"
-              className="font-medium text-primary hover:underline flex items-center gap-0.5 transition-colors duration-200"
-              target="_blank"
-              rel="noopener noreferrer">
-              <span className="hidden sm:inline">
-                <svg
-                  fill="currentColor"
-                  viewBox="0 0 40 20"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                  className="size-6">
-                  <path d="M23.3919 0H32.9188C36.7819 0 39.9136 3.13165 39.9136 6.99475V16.0805H36.0006V6.99475C36.0006 6.90167 35.9969 6.80925 35.9898 6.71766L26.4628 16.079C26.4949 16.08 26.5272 16.0805 26.5595 16.0805H36.0006V19.7762H26.5595C22.6964 19.7762 19.4788 16.6139 19.4788 12.7508V3.68923H23.3919V12.7508C23.3919 12.9253 23.4054 13.0977 23.4316 13.2668L33.1682 3.6995C33.0861 3.6927 33.003 3.68923 32.9188 3.68923H23.3919V0Z"></path>
-                  <path d="M13.7688 19.0956L0 3.68759H5.53933L13.6231 12.7337V3.68759H17.7535V17.5746C17.7535 19.6705 15.1654 20.6584 13.7688 19.0956Z"></path>
-                </svg>
-              </span>
-            </Link>
-            <span className="text-muted-foreground">By</span>
-            <Link
-              href="https://lakshb.dev"
-              className="hover:underline font-medium hover:text-primary transition-colors duration-200"
-              target="_blank"
-              rel="noopener noreferrer">
-              lakshaybhushan
-            </Link>
+          <div className="flex flex-wrap justify-center items-center gap-2">
+            <span className="flex items-center">
+              {t('home.footer.ideatedWith')}{" "}
+              <Link
+                href="https://v0.dev/chat/three-js-logo-converter-JEQ692TQD4t"
+                className="font-medium text-primary hover:underline flex items-center gap-0.5 transition-colors duration-200"
+                target="_blank"
+                rel="noopener noreferrer">
+                <span className="hidden sm:inline">
+                  <svg
+                    fill="currentColor"
+                    viewBox="0 0 40 20"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                    className="size-6">
+                    <path d="M23.3919 0H32.9188C36.7819 0 39.9136 3.13165 39.9136 6.99475V16.0805H36.0006V6.99475C36.0006 6.90167 35.9969 6.80925 35.9898 6.71766L26.4628 16.079C26.4949 16.08 26.5272 16.0805 26.5595 16.0805H36.0006V19.7762H26.5595C22.6964 19.7762 19.4788 16.6139 19.4788 12.7508V3.68923H23.3919V12.7508C23.3919 12.9253 23.4054 13.0977 23.4316 13.2668L33.1682 3.6995C33.0861 3.6927 33.003 3.68923 32.9188 3.68923H23.3919V0Z"></path>
+                    <path d="M13.7688 19.0956L0 3.68759H5.53933L13.6231 12.7337V3.68759H17.7535V17.5746C17.7535 19.6705 15.1654 20.6584 13.7688 19.0956Z"></path>
+                  </svg>
+                </span>
+              </Link>
+            </span>
+
+            <span className="mx-1 text-muted-foreground">•</span>
+
+            <span className="flex items-center">
+              {t('home.footer.by')}{" "}
+              <Link
+                href="https://lakshb.dev"
+                className="hover:underline font-medium hover:text-primary transition-colors duration-200 ml-1"
+                target="_blank"
+                rel="noopener noreferrer">
+                lakshaybhushan
+              </Link>
+            </span>
+
+            <span className="mx-1 text-muted-foreground">•</span>
+
+            <span className="flex items-center">
+              {t('home.footer.localizedBy')}{" "}
+              <Link
+                href="#"
+                className="hover:underline font-medium hover:text-primary transition-colors duration-200 ml-1"
+                target="_blank"
+                rel="noopener noreferrer">
+                {t('home.footer.localizer')}
+              </Link>
+            </span>
           </div>
         </div>
       </motion.footer>

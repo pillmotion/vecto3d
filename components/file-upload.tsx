@@ -13,6 +13,7 @@ import {
   Vecto3dIcon,
 } from "@/components/ui/example-icons";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/locales/client";
 
 const exampleIcons = [
   { name: "GitHub", component: GitHubIcon },
@@ -29,6 +30,7 @@ export function FileUpload({
   selectedIcon,
   onIconSelect,
 }: FileUploadProps) {
+  const t = useI18n();
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [svgContent, setSvgContent] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,7 +50,7 @@ export function FileUpload({
       };
       reader.readAsText(file);
     } else if (file) {
-      toast.error("Please upload an SVG file (.svg)");
+      toast.error(t('fileUpload.svgErrorMessage'));
     }
   };
 
@@ -163,11 +165,10 @@ export function FileUpload({
         <CardContent className="p-0">
           <motion.div
             ref={dropZoneRef}
-            className={`relative min-h-[270px] flex flex-col items-center justify-center cursor-pointer px-10 py-14 transition-all duration-300 ${
-              isDragging
+            className={`relative min-h-[270px] flex flex-col items-center justify-center cursor-pointer px-10 py-14 transition-all duration-300 ${isDragging
                 ? "border-primary border-4 border-dashed bg-primary/10"
                 : "border-border border-2 border-dashed hover:bg-muted/30"
-            }`}
+              }`}
             onClick={handleUploadClick}
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
@@ -221,11 +222,10 @@ export function FileUpload({
                 ) : (
                   <div>
                     <motion.div
-                      className={`relative z-10 p-3.5 rounded-xl border-2 shadow-lg ${
-                        isDragging
+                      className={`relative z-10 p-3.5 rounded-xl border-2 shadow-lg ${isDragging
                           ? "border-primary bg-primary-foreground"
                           : "border-border bg-muted"
-                      }`}
+                        }`}
                       animate={{
                         rotate: isDragging ? [-2, 2, -2] : 0,
                       }}
@@ -233,11 +233,10 @@ export function FileUpload({
                         rotate: { repeat: Infinity, duration: 0.5 },
                       }}>
                       <FileType
-                        className={`h-12 w-12 ${
-                          isDragging
+                        className={`h-12 w-12 ${isDragging
                             ? "text-primary animate-pulse"
                             : "text-primary"
-                        }`}
+                          }`}
                         strokeWidth={1.5}
                       />
                     </motion.div>
@@ -261,19 +260,19 @@ export function FileUpload({
                         {fileName}
                       </motion.span>
                     ) : (
-                      "Click or drop your SVG file here"
+                      t('fileUpload.clickOrDrop')
                     )}
                   </p>
                   <p className="text-muted-foreground text-sm mt-1.5">
                     {svgContent || selectedIcon
-                      ? "Let's make it 3D!"
-                      : "We'll convert it to a 3D model and let you edit it"}
+                      ? t('fileUpload.makeThing3D')
+                      : t('fileUpload.convertDescription')}
                   </p>
 
                   <div className="mt-7">
                     <div className="w-full h-[1px] bg-border my-3.5"></div>
                     <p className="text-xs text-muted-foreground mb-3.5">
-                      Or choose from below
+                      {t('fileUpload.orChooseFrom')}
                     </p>
                     <motion.div
                       className="flex flex-wrap justify-center gap-3.5"
@@ -309,11 +308,10 @@ export function FileUpload({
                               selectedIcon === icon.name ? "default" : "outline"
                             }
                             size="lg"
-                            className={`flex flex-col items-center justify-center p-3.5 h-auto w-[81px] gap-1.5 rounded-lg transition-all duration-200 ${
-                              selectedIcon === icon.name
+                            className={`flex flex-col items-center justify-center p-3.5 h-auto w-[81px] gap-1.5 rounded-lg transition-all duration-200 ${selectedIcon === icon.name
                                 ? "bg-primary text-primary-foreground shadow-lg scale-105"
                                 : "hover:bg-muted/60 hover:scale-105"
-                            }`}
+                              }`}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleIconSelect(icon.name);
@@ -336,7 +334,7 @@ export function FileUpload({
                   }}
                   transition={{ duration: 0.2 }}>
                   <p className="text-lg font-medium text-primary">
-                    Drop your SVG file here
+                    {t('fileUpload.dropHere')}
                   </p>
                 </motion.div>
               </div>

@@ -3,6 +3,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GeometryControlsProps } from "@/lib/types";
 import { BEVEL_PRESETS } from "@/lib/constants";
+import { useI18n } from "@/locales/client";
 
 export function GeometryControls({
   depth,
@@ -22,7 +23,7 @@ export function GeometryControls({
   autoRotateSpeed,
   setAutoRotateSpeed,
 }: GeometryControlsProps) {
-  
+  const t = useI18n();
   const displayToActualRotation = (displayValue: number) => {
     return displayValue + 1.5; // Convert 1-5 display scale to 2.5-7.5 actual scale
   };
@@ -45,7 +46,7 @@ export function GeometryControls({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="depth">Thickness: {depth}</Label>
+        <Label htmlFor="depth">{t('edit.geometryControls.depth')}: {depth}</Label>
         <Slider
           id="depth"
           min={0.5}
@@ -57,45 +58,44 @@ export function GeometryControls({
       </div>
 
       <div className="space-y-2 pt-2">
-        <Label htmlFor="bevelPreset">Bevel Style</Label>
+        <Label htmlFor="bevelPreset">{t('edit.geometryControls.bevel.presets.title')}</Label>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
           {BEVEL_PRESETS.map((preset) => (
             <div
               key={preset.name}
-              className={`cursor-pointer rounded-lg p-2 flex flex-col items-center ${
-                bevelPreset === preset.name
-                  ? "bg-primary/20 ring-1 ring-primary"
-                  : "hover:bg-muted"
-              }`}
+              className={`cursor-pointer rounded-lg p-2 flex flex-col items-center ${bevelPreset === preset.name
+                ? "bg-primary/20 ring-1 ring-primary"
+                : "hover:bg-muted"
+                }`}
               onClick={() => applyBevelPreset(preset.name)}>
               <div
                 className="w-14 h-14 rounded-md mb-1 flex items-center justify-center overflow-hidden"
                 style={
                   preset.name === "none"
                     ? {
-                        background: "transparent",
-                        border: "1px solid var(--border)",
-                        borderRadius: "4px",
-                      }
+                      background: "transparent",
+                      border: "1px solid var(--border)",
+                      borderRadius: "4px",
+                    }
                     : preset.name === "custom"
                       ? {
-                          background:
-                            "linear-gradient(135deg, hsl(var(--primary)/0.8), hsl(var(--primary)/0.6))",
-                          border: "1px solid hsl(var(--primary)/0.3)",
-                          boxShadow: "inset 0 0 8px rgba(255,255,255,0.3)",
-                          borderRadius: "10%",
-                        }
+                        background:
+                          "linear-gradient(135deg, hsl(var(--primary)/0.8), hsl(var(--primary)/0.6))",
+                        border: "1px solid hsl(var(--primary)/0.3)",
+                        boxShadow: "inset 0 0 8px rgba(255,255,255,0.3)",
+                        borderRadius: "10%",
+                      }
                       : {
-                          position: "relative",
-                          background:
-                            "linear-gradient(135deg, hsl(var(--primary)/0.5), hsl(var(--primary)/0.3))",
-                          border: "1px solid hsl(var(--primary)/0.3)",
-                          borderRadius: `${preset.size * 15}%`,
-                          boxShadow: `
+                        position: "relative",
+                        background:
+                          "linear-gradient(135deg, hsl(var(--primary)/0.5), hsl(var(--primary)/0.3))",
+                        border: "1px solid hsl(var(--primary)/0.3)",
+                        borderRadius: `${preset.size * 15}%`,
+                        boxShadow: `
                             inset 0 0 0 ${preset.thickness}px rgba(255,255,255,0.2),
                             0 ${preset.thickness * 2}px ${preset.thickness * 3}px rgba(0,0,0,0.15)
                           `,
-                        }
+                      }
                 }>
                 {preset.name === "none" && (
                   <div className="w-6 h-6 rounded-sm bg-muted-foreground/20"></div>
@@ -133,7 +133,13 @@ export function GeometryControls({
                   </div>
                 )}
               </div>
-              <span className="text-xs font-medium">{preset.label}</span>
+              <span className="text-xs font-medium">
+                {preset.name === "none" && t('edit.geometryControls.bevel.presets.none')}
+                {preset.name === "light" && t('edit.geometryControls.bevel.presets.slight')}
+                {preset.name === "medium" && t('edit.geometryControls.bevel.presets.medium')}
+                {preset.name === "heavy" && t('edit.geometryControls.bevel.presets.strong')}
+                {preset.name === "custom" && t('edit.geometryControls.bevel.presets.custom')}
+              </span>
             </div>
           ))}
         </div>
@@ -142,7 +148,7 @@ export function GeometryControls({
           <>
             <div className="space-y-2 mt-4">
               <Label htmlFor="bevelThickness">
-                Bevel Thickness: {bevelThickness.toFixed(1)}
+                {t('edit.geometryControls.bevel.thickness')}: {bevelThickness.toFixed(1)}
               </Label>
               <Slider
                 id="bevelThickness"
@@ -158,7 +164,7 @@ export function GeometryControls({
 
             <div className="space-y-2">
               <Label htmlFor="bevelSize">
-                Bevel Size: {bevelSize.toFixed(1)}
+                {t('edit.geometryControls.bevel.size')}: {bevelSize.toFixed(1)}
               </Label>
               <Slider
                 id="bevelSize"
@@ -174,7 +180,7 @@ export function GeometryControls({
 
             <div className="space-y-2">
               <Label htmlFor="bevelSegments">
-                Bevel Quality: {bevelSegments}
+                {t('edit.geometryControls.bevel.segments')}: {bevelSegments}
               </Label>
               <Slider
                 id="bevelSegments"
@@ -198,13 +204,13 @@ export function GeometryControls({
             checked={autoRotate}
             onCheckedChange={(checked) => setAutoRotate(checked as boolean)}
           />
-          <Label htmlFor="autoRotate">Auto-rotate model</Label>
+          <Label htmlFor="autoRotate">{t('edit.geometryControls.rotation.autoRotate')}</Label>
         </div>
 
         {autoRotate && (
           <div className="space-y-2 pt-2">
             <Label htmlFor="autoRotateSpeed">
-              Rotation Speed:{" "}
+              {t('edit.geometryControls.rotation.speed')}:{" "}
               {actualToDisplayRotation(autoRotateSpeed).toFixed(1)}
             </Label>
             <Slider

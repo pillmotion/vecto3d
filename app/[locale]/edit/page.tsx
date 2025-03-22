@@ -27,6 +27,7 @@ import {
 import { BlendFunction } from "postprocessing";
 import React from "react";
 import { ModeToggle } from "@/components/ui/theme-toggle";
+import { LanguageToggle } from "@/components/ui/language-toggle";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   staggerContainer,
@@ -43,6 +44,7 @@ import { EnvironmentControls } from "@/components/controls/environment-controls"
 import { BackgroundControls } from "@/components/controls/background-controls";
 import { ExportButtons } from "@/components/export-buttons";
 import { EditorMobileWarning } from "@/components/mobile-warning";
+import { useI18n } from "@/locales/client";
 
 import {
   MATERIAL_PRESETS,
@@ -316,41 +318,50 @@ const ModelPreview = React.memo<ModelPreviewProps>(
 ModelPreview.displayName = "ModelPreview";
 
 // Loading state component
-const ModelLoadingState = ({ message }: { message: string }) => (
-  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-muted/10 to-muted/20">
-    <div className="flex flex-col items-center gap-4 text-center max-w-xs px-4">
-      <div className="relative h-20 w-20">
-        <div className="absolute inset-0 rounded-full bg-background/20 animate-pulse"></div>
-        <div className="absolute inset-4 rounded-full bg-background/40 animate-pulse [animation-delay:200ms]"></div>
-        <Loader2 className="absolute inset-0 h-full w-full animate-spin text-primary opacity-80" />
-      </div>
-      <div className="space-y-2">
-        <p className="text-sm font-medium">{message}</p>
-        <p className="text-xs text-muted-foreground">
-          This may take a moment for complex SVGs
-        </p>
-      </div>
-    </div>
-  </div>
-);
+const ModelLoadingState = ({ message }: { message: string }) => {
+  const t = useI18n();
 
-const ModelErrorState = ({ error }: { error: string }) => (
-  <div className="w-full h-full flex items-center justify-center bg-destructive/5">
-    <div className="max-w-sm p-6 text-center">
-      <p className="text-destructive font-medium mb-2">Error processing SVG</p>
-      <p className="text-xs text-muted-foreground">{error}</p>
-      <Button
-        variant="outline"
-        size="sm"
-        className="mt-4"
-        onClick={() => window.location.reload()}>
-        Try Again
-      </Button>
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-muted/10 to-muted/20">
+      <div className="flex flex-col items-center gap-4 text-center max-w-xs px-4">
+        <div className="relative h-20 w-20">
+          <div className="absolute inset-0 rounded-full bg-background/20 animate-pulse"></div>
+          <div className="absolute inset-4 rounded-full bg-background/40 animate-pulse [animation-delay:200ms]"></div>
+          <Loader2 className="absolute inset-0 h-full w-full animate-spin text-primary opacity-80" />
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{message}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('edit.loading.complexSvg')}
+          </p>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
+const ModelErrorState = ({ error }: { error: string }) => {
+  const t = useI18n();
+
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-destructive/5">
+      <div className="max-w-sm p-6 text-center">
+        <p className="text-destructive font-medium mb-2">{t('edit.error.title')}</p>
+        <p className="text-xs text-muted-foreground">{error}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          onClick={() => window.location.reload()}>
+          {t('edit.error.tryAgain')}
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 export default function EditPage() {
+  const t = useI18n();
   const [svgData, setSvgData] = useState<string | null>(null);
   const [depth, setDepth] = useState<number>(1);
   const [isModelLoading, setIsModelLoading] = useState<boolean>(true);
@@ -503,7 +514,7 @@ export default function EditPage() {
 
   const toggleVibeMode = (newState: boolean) => {
     if (newState && environmentPreset === "custom" && customHdriUrl) {
-      toast.error("Vibe Mode is not available with custom images", {
+      toast.error(t('edit.environmentControls.vibeMode.notAvailable'), {
         duration: 3000,
       });
       return;
@@ -531,7 +542,7 @@ export default function EditPage() {
       }
     } else {
       if (environmentPreset === "custom" && customHdriUrl) {
-        toast.info("Custom environment maintained after exiting Vibe Mode", {
+        toast.info(t('edit.environmentControls.vibeMode.maintained'), {
           duration: 3000,
         });
       }
@@ -550,7 +561,7 @@ export default function EditPage() {
     if (environmentPreset === "custom" && customHdriUrl && useBloom) {
       toggleVibeMode(false);
       toast.info(
-        "Vibe Mode has been disabled because you selected a custom image",
+        t('edit.environmentControls.vibeMode.disabled'),
         {
           duration: 3000,
         }
@@ -560,11 +571,11 @@ export default function EditPage() {
 
   const renderModelPreview = () => {
     if (!svgData) {
-      return <ModelLoadingState message="Waiting for SVG data..." />;
+      return <ModelLoadingState message={t('edit.loading.waiting')} />;
     }
 
     if (isModelLoading) {
-      return <ModelLoadingState message="Generating 3D model..." />;
+      return <ModelLoadingState message={t('edit.loading.generating')} />;
     }
 
     if (svgProcessingError) {
@@ -638,12 +649,13 @@ export default function EditPage() {
               aria-label="Back to home"
               className="rounded-md w-fit px-4 py-2">
               <ArrowLeft className="h-5 w-5" />
-              <span className="hidden sm:inline">Back</span>
+              <span className="hidden sm:inline">{t('edit.backToHome')}</span>
             </Button>
           </div>
 
           <div className="flex items-center gap-2">
             <ModeToggle />
+            <LanguageToggle />
             {svgData && (
               <ExportButtons
                 fileName={fileName}
@@ -680,13 +692,13 @@ export default function EditPage() {
                 className="h-[400px] sm:h-[500px] lg:h-[600px] order-first lg:order-last relative overflow-hidden">
                 <Card className="w-full h-full flex flex-col overflow-hidden border-[1px] shadow-sm">
                   <CardHeader className="p-4 pb-4 border-b bg-background/80 backdrop-blur-sm z-10">
-                    <CardTitle className="text-lg">Preview</CardTitle>
+                    <CardTitle className="text-lg">{t('edit.preview.title')}</CardTitle>
                     <CardDescription className="text-xs">
                       {!svgData
-                        ? "Loading SVG data..."
+                        ? t('edit.preview.loadingSvg')
                         : isModelLoading
-                        ? "Processing SVG..."
-                        : "Interact with your 3D model"}
+                          ? t('edit.preview.processing')
+                          : t('edit.preview.interact')}
                     </CardDescription>
                   </CardHeader>
 
@@ -701,7 +713,7 @@ export default function EditPage() {
                 variants={cardAnimation}>
                 <Card>
                   <CardHeader className="p-4 pb-4">
-                    <CardTitle className="text-lg">Customize</CardTitle>
+                    <CardTitle className="text-lg">{t('edit.customize.title')}</CardTitle>
                     <CardDescription className="text-xs truncate">
                       {fileName}
                     </CardDescription>
@@ -710,16 +722,16 @@ export default function EditPage() {
                     <Tabs defaultValue="geometry">
                       <TabsList className="w-full flex justify-between mb-4 overflow-x-auto">
                         <TabsTrigger value="geometry" className="flex-1">
-                          Geometry
+                          {t('edit.tabs.geometry')}
                         </TabsTrigger>
                         <TabsTrigger value="material" className="flex-1">
-                          Material
+                          {t('edit.tabs.material')}
                         </TabsTrigger>
                         <TabsTrigger value="environment" className="flex-1">
-                          Environment
+                          {t('edit.tabs.environment')}
                         </TabsTrigger>
                         <TabsTrigger value="background" className="flex-1">
-                          Background
+                          {t('edit.tabs.background')}
                         </TabsTrigger>
                       </TabsList>
 

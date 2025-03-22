@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { exportToSTL, exportToGLTF } from "@/lib/exporters";
 import { PNG_RESOLUTIONS } from "@/lib/constants";
 import { File, Image } from "lucide-react";
+import { useI18n } from "@/locales/client";
 
 interface ExportButtonsProps {
   fileName: string;
@@ -18,6 +19,8 @@ interface ExportButtonsProps {
 }
 
 export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
+  const t = useI18n();
+
   const handleExport = async (
     format: "stl" | "gltf" | "glb" | "png",
     resolution?: number,
@@ -29,7 +32,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
 
     if (!modelGroupRef.current || !fileName) {
       console.error("Export failed: Model group or filename missing");
-      toast.error("Error: Cannot export - model not loaded");
+      toast.error(t('edit.export.errors.modelNotLoaded'));
       return;
     }
 
@@ -40,7 +43,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
       if (format === "png") {
         const canvas = document.querySelector("canvas");
         if (!canvas) {
-          toast.error("Could not find the 3D renderer");
+          toast.error(t('edit.export.errors.canvasNotFound'));
           return false;
         }
 
@@ -51,7 +54,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
           const ctx = exportCanvas.getContext("2d");
 
           if (!ctx) {
-            throw new Error("Could not get 2D context for export canvas");
+            throw new Error(t('edit.export.errors.canvasContext'));
           }
 
           exportCanvas.width = canvas.width * pngResolution;
@@ -92,12 +95,12 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
           link.click();
           document.body.removeChild(link);
 
-          toast.success(`Image saved as ${baseName}.png`, { duration: 3000 });
+          toast.success(t('edit.export.success.imageSaved', { name: `${baseName}.png` }), { duration: 3000 });
           exportCanvas.remove();
           URL.revokeObjectURL(dataURL);
         } catch (error) {
           console.error("Error exporting PNG:", error);
-          toast.error("Failed to generate image");
+          toast.error(t('edit.export.errors.imageGenerationFailed'));
         }
 
         return true;
@@ -137,18 +140,18 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
 
       if (success) {
         toast.success(
-          `${baseName}.${format} has been downloaded successfully`,
+          t('edit.export.success.modelSaved', { name: `${baseName}.${format}` }),
           {
             duration: 3000,
           },
         );
       } else {
-        toast.error(`Failed to export ${format.toUpperCase()}`);
+        toast.error(t('edit.export.errors.exportFailed', { format: format.toUpperCase() }));
       }
     } catch (error) {
       console.error("Export error:", error);
       toast.error(
-        `Export failed: ${(error as Error).message || "Unknown error"}`,
+        t('edit.export.errors.exportError', { message: (error as Error).message || t('edit.export.errors.unknown') }),
       );
     }
   };
@@ -162,7 +165,7 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
             variant="outline"
             className="flex items-center gap-1">
             <Camera className="h-4 w-4 mr-0.5" />
-            <span className="hidden sm:inline">Export Image</span>
+            <span className="hidden sm:inline">{t('edit.export.buttons.exportImage')}</span>
             <ChevronDown className="h-4 w-4 ml-1" />
           </Button>
         </DropdownMenuTrigger>
@@ -172,7 +175,9 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
               key={resolution.multiplier}
               onSelect={() => handleExport("png", resolution.multiplier)}>
               <Image className="h-4 w-4 ml-1" />
-              {resolution.label}
+              {resolution.multiplier === 1 && t('edit.export.quality.low')}
+              {resolution.multiplier === 2 && t('edit.export.quality.medium')}
+              {resolution.multiplier === 3 && t('edit.export.quality.high')}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -182,22 +187,22 @@ export function ExportButtons({ fileName, modelGroupRef }: ExportButtonsProps) {
         <DropdownMenuTrigger asChild>
           <Button size="sm" className="flex items-center gap-1">
             <Box className="h-4 w-4" />
-            <span className="hidden sm:inline">Export 3D</span>
+            <span className="hidden sm:inline">{t('edit.export.buttons.export3D')}</span>
             <ChevronDown className="h-4 w-4 ml-1" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onSelect={() => handleExport("stl")}>
             <File className="h-4 w-4 mr-0.5" />
-            Export as STL
+            {t('edit.export.formats.stl')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => handleExport("glb")}>
             <File className="h-4 w-4 mr-0.5" />
-            Export as GLB
+            {t('edit.export.formats.glb')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => handleExport("gltf")}>
             <File className="h-4 w-4 mr-0.5" />
-            Export as GLTF
+            {t('edit.export.formats.gltf')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

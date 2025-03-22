@@ -8,6 +8,7 @@ import {
   DARK_MODE_COLOR,
   LIGHT_MODE_COLOR,
 } from "@/lib/constants";
+import { useI18n } from "@/locales/client";
 
 export function BackgroundControls({
   backgroundColor,
@@ -18,6 +19,8 @@ export function BackgroundControls({
   setSolidColorPreset,
   theme,
 }: BackgroundControlsProps) {
+  const t = useI18n();
+
   const handleBackgroundChange = (color: string, preset: string) => {
     setUserSelectedBackground(true);
     setSolidColorPreset(preset);
@@ -29,28 +32,28 @@ export function BackgroundControls({
       <Alert className="bg-muted/50 mb-4">
         <AlertDescription className="text-xs flex items-center">
           <InfoIcon className="h-4 w-4 mr-2" />
-          Background settings are for preview only and will not be included in
-          the exported 3D model.
+          {t('edit.backgroundControls.notice.previewOnly')}
         </AlertDescription>
       </Alert>
 
       <div className="space-y-4">
-        <Label>Background Color</Label>
+        <Label>{t('edit.backgroundControls.backgroundColor')}</Label>
         <div className="flex items-center mb-2 text-sm text-muted-foreground">
           <span>
-            Currently using:{" "}
-            {userSelectedBackground ? "Custom selection" : "Theme default"}
+            {t('edit.backgroundControls.currentlyUsing')}{" "}
+            {userSelectedBackground
+              ? t('edit.backgroundControls.customSelection')
+              : t('edit.backgroundControls.themeDefault')}
           </span>
         </div>
         <div className="grid grid-cols-5 gap-2">
           {SOLID_COLOR_PRESETS.map((preset) => (
             <div
               key={preset.name}
-              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${
-                solidColorPreset === preset.name
+              className={`cursor-pointer rounded-md p-2 flex flex-col items-center ${solidColorPreset === preset.name
                   ? "bg-primary/20 ring-1 ring-primary"
                   : "hover:bg-muted"
-              }`}
+                }`}
               onClick={() => handleBackgroundChange(preset.color, preset.name)}>
               <div
                 className="w-12 h-12 rounded-full mb-1"
@@ -58,13 +61,19 @@ export function BackgroundControls({
                   background: preset.color,
                 }}
               />
-              <span className="text-xs font-medium">{preset.label}</span>
+              <span className="text-xs font-medium">
+                {preset.name === "light" && t('edit.backgroundControls.presets.light')}
+                {preset.name === "dark" && t('edit.backgroundControls.presets.dark')}
+                {preset.name === "blue" && t('edit.backgroundControls.presets.blue')}
+                {preset.name === "gray" && t('edit.backgroundControls.presets.gray')}
+                {preset.name === "green" && t('edit.backgroundControls.presets.green')}
+              </span>
             </div>
           ))}
         </div>
 
         <div className="space-y-2 pt-2">
-          <Label htmlFor="backgroundColor">Custom Color</Label>
+          <Label htmlFor="backgroundColor">{t('edit.backgroundControls.customColor')}</Label>
           <div className="flex items-center space-x-2">
             <input
               type="color"
@@ -97,7 +106,7 @@ export function BackgroundControls({
               }
             }}
             className="w-full">
-            Reset to Theme Default
+            {t('edit.backgroundControls.resetToThemeDefault')}
           </Button>
         </div>
       </div>

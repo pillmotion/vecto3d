@@ -7,6 +7,7 @@ import Script from "next/script";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
+import { I18nProviderClient } from "@/locales/client";
 
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
@@ -29,13 +30,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <meta property="og:image" content="/opengraph-image.png" />
       <meta property="og:image:type" content="image/png" />
       <meta property="og:image:width" content="1200" />
@@ -55,20 +60,22 @@ export default function RootLayout({
         data-website-id="237f1de7-ab04-44dd-a7b4-6b0b819b7991"
       />
       <body className={cn(instrumentSans.className, instrumentSerif.variable)}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange>
-          {children}
-          <Analytics />
-          <SonnerToaster
-            position="top-center"
-            richColors
-            closeButton
-            theme="system"
-          />
-        </ThemeProvider>
+        <I18nProviderClient locale={locale}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange>
+            {children}
+            <Analytics />
+            <SonnerToaster
+              position="top-center"
+              richColors
+              closeButton
+              theme="system"
+            />
+          </ThemeProvider>
+        </I18nProviderClient>
       </body>
     </html>
   );
