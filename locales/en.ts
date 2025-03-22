@@ -132,6 +132,8 @@ export default {
                 disable: "Disable Vibe Mode",
                 notAvailable: "Vibe Mode Not Available with Custom Images",
                 customNotSupported: "Vibe Mode is not available with custom images",
+                maintained: "Custom environment maintained",
+                disabled: "Vibe Mode has been disabled",
                 glowIntensity: "Glow Intensity",
                 softGlow: "Soft Glow",
                 modelRotation: "Model Rotation"

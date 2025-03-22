@@ -132,6 +132,8 @@ export default {
                 disable: "禁用氛围模式",
                 notAvailable: "自定义图像不支持氛围模式",
                 customNotSupported: "自定义图像不支持氛围模式",
+                maintained: "已保持自定义环境",
+                disabled: "氛围模式已被禁用",
                 glowIntensity: "发光强度",
                 softGlow: "柔和发光",
                 modelRotation: "模型旋转"
